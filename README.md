@@ -1,8 +1,8 @@
 # CursorRing
 
-CursorRing is a Dalamud plugin that replaces the Final Fantasy XIV cursor with a configurable hollow circle and center dot. It can also show global cooldown progress around or inside the cursor.
+[![CursorRing CI](https://github.com/ptMuta/CursorRing/actions/workflows/pr-build.yml/badge.svg?branch=master)](https://github.com/ptMuta/CursorRing/actions/workflows/pr-build.yml)
 
-- CI: [![CursorRing CI](https://github.com/ptMuta/CursorRing/actions/workflows/pr-build.yml/badge.svg?branch=master)](https://github.com/ptMuta/CursorRing/actions/workflows/pr-build.yml)
+CursorRing is a Dalamud plugin that replaces the Final Fantasy XIV cursor with a configurable hollow circle and center dot. It can also show global cooldown progress around or inside the cursor.
 
 ## Features
 
