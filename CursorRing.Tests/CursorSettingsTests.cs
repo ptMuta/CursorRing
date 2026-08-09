@@ -10,15 +10,24 @@ public sealed class CursorSettingsTests
         var settings = new CursorSettings();
 
         Assert.Equal(VisibilityMode.CombatOnly, settings.Visibility);
-        Assert.Equal(MouseLookVisibility.CombatOnly, settings.MouseLook);
+        Assert.Equal(MouseLookVisibility.FollowVisibility, settings.MouseLook);
         Assert.True(settings.ShowGcd);
         Assert.Equal(GcdPlacement.Outer, settings.GcdPlacement);
         Assert.Equal(ProgressBehavior.Drain, settings.ProgressBehavior);
         Assert.Equal(RotationDirection.Clockwise, settings.Rotation);
         Assert.True(settings.ShowGcdTrack);
-        Assert.False(settings.ShowRingBorder);
-        Assert.False(settings.ShowDotBorder);
-        Assert.False(settings.ShowGcdBorder);
+        Assert.Equal(5f, settings.RingThickness);
+        Assert.Equal(6f, settings.DotDiameter);
+        Assert.Equal(5f, settings.GcdThickness);
+        Assert.True(settings.ShowRingBorder);
+        Assert.True(settings.ShowDotBorder);
+        Assert.True(settings.ShowGcdBorder);
+        Assert.Equal(1f, settings.RingBorderThickness);
+        Assert.Equal(1f, settings.DotBorderThickness);
+        Assert.Equal(1f, settings.GcdBorderThickness);
+        Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.RingBorderColor);
+        Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.DotBorderColor);
+        Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.GcdBorderColor);
         Assert.False(settings.ShowCastSegments);
         Assert.Equal(SlidecastTimingMode.Hybrid, settings.SlidecastTiming);
         Assert.Equal(500f, settings.SlidecastPredictionMilliseconds);
@@ -62,9 +71,9 @@ public sealed class CursorSettingsTests
         Assert.True(settings.Normalize());
         Assert.Equal(1, settings.Version);
         Assert.Equal(VisibilityMode.CombatOnly, settings.Visibility);
-        Assert.Equal(MouseLookVisibility.CombatOnly, settings.MouseLook);
+        Assert.Equal(MouseLookVisibility.FollowVisibility, settings.MouseLook);
         Assert.Equal(48f, settings.RingDiameter);
-        Assert.Equal(3f, settings.RingThickness);
+        Assert.Equal(5f, settings.RingThickness);
         Assert.Equal(1f, settings.DotDiameter);
         Assert.Equal(new Vector4(1f, 0f, 1f, 0.5f), settings.RingColor);
         Assert.Equal(1f, settings.RingBorderThickness);
@@ -110,10 +119,10 @@ public sealed class CursorSettingsTests
             DotDiameter = 30f,
             RingColor = Vector4.Zero,
             DotColor = Vector4.Zero,
-            ShowRingBorder = true,
+            ShowRingBorder = false,
             RingBorderThickness = 10f,
             RingBorderColor = Vector4.One,
-            ShowDotBorder = true,
+            ShowDotBorder = false,
             DotBorderThickness = 10f,
             DotBorderColor = Vector4.One,
             ShowGcd = false,
@@ -126,7 +135,7 @@ public sealed class CursorSettingsTests
             GcdColor = Vector4.Zero,
             ShowGcdTrack = false,
             GcdTrackColor = Vector4.One,
-            ShowGcdBorder = true,
+            ShowGcdBorder = false,
             GcdBorderThickness = 10f,
             GcdBorderColor = Vector4.One,
             ShowCastSegments = true,

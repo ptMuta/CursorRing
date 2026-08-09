@@ -15,6 +15,7 @@
     "Punchline": "A configurable circular cursor with GCD progress.",
     "AcceptsFeedback": true,
     "RepoUrl": "https://github.com/ptMuta/CursorRing",
+    "IconUrl": "https://raw.githubusercontent.com/ptMuta/CursorRing/master/images/icon.png",
     "IsHide": false,
     "IsTestingExclusive": false,
     "DownloadLinkInstall": "https://github.com/ptMuta/CursorRing/releases/download/1.0.0-rc/latest.zip",
