@@ -27,8 +27,21 @@ internal sealed class ProfileManager
     {
         currentTerritoryId = territoryId;
         currentDutyGroupId = dutyGroupId;
-        var id = ProfileRules.Resolve(territories, duties, territoryId, dutyGroupId);
-        var settings = id != Guid.Empty && profiles.TryGetValue(id, out var profile) ? profile.Settings : configuration;
+        var id = ProfileRules.Resolve(territories, duties, territoryId, dutyGroupId, configuration.DefaultProfileId);
+        CursorSettings settings;
+        if (id == Guid.Empty)
+        {
+            settings = configuration;
+        }
+        else if (profiles.TryGetValue(id, out var profile))
+        {
+            settings = profile.Settings;
+        }
+        else
+        {
+            id = Guid.Empty;
+            settings = configuration;
+        }
         if (ReferenceEquals(settings, ActiveSettings) && id == ActiveProfileId)
         {
             return false;
@@ -68,7 +81,17 @@ internal sealed class ProfileManager
     {
         var removed = configuration.Assignments.RemoveAll(value => value.ProfileId == id);
         configuration.Profiles.RemoveAll(value => value.Id == id);
+        if (configuration.DefaultProfileId == id)
+        {
+            configuration.DefaultProfileId = Guid.Empty;
+        }
         Rebuild();
         return removed;
+    }
+
+    internal void SetDefault(Guid id)
+    {
+        configuration.DefaultProfileId = id != Guid.Empty && !profiles.ContainsKey(id) ? Guid.Empty : id;
+        Resolve(currentTerritoryId, currentDutyGroupId);
     }
 }

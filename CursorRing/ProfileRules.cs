@@ -71,9 +71,25 @@ internal static class ProfileRules
         return changed;
     }
 
-    internal static Guid Resolve(IReadOnlyDictionary<uint, Guid> territories, IReadOnlyDictionary<uint, Guid> duties, uint territoryId, uint dutyGroupId)
+    internal static Guid Resolve(IReadOnlyDictionary<uint, Guid> territories, IReadOnlyDictionary<uint, Guid> duties, uint territoryId, uint dutyGroupId, Guid defaultProfileId)
     {
-        return duties.TryGetValue(dutyGroupId, out var duty) ? duty : territories.TryGetValue(territoryId, out var territory) ? territory : Guid.Empty;
+        return duties.TryGetValue(dutyGroupId, out var duty) ? duty : territories.TryGetValue(territoryId, out var territory) ? territory : defaultProfileId;
+    }
+
+    internal static Guid NormalizeDefaultProfileId(IReadOnlyList<CursorProfile> profiles, Guid id)
+    {
+        if (id == Guid.Empty)
+        {
+            return Guid.Empty;
+        }
+        for (var index = 0; index < profiles.Count; index++)
+        {
+            if (profiles[index].Id == id)
+            {
+                return id;
+            }
+        }
+        return Guid.Empty;
     }
 
     internal static bool NormalizeZoneTargets(List<CursorAssignment> assignments, IReadOnlyDictionary<uint, uint> groups)

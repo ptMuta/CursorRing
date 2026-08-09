@@ -47,9 +47,10 @@ public sealed class ProfileRulesTests
         {
             [20] = Guid.Empty
         };
-        Assert.Equal(Guid.Empty, ProfileRules.Resolve(territories, duties, 10, 20));
-        Assert.Equal(territoryProfile, ProfileRules.Resolve(territories, duties, 10, 21));
-        Assert.Equal(Guid.Empty, ProfileRules.Resolve(territories, duties, 11, 21));
+        var defaultProfile = Guid.NewGuid();
+        Assert.Equal(Guid.Empty, ProfileRules.Resolve(territories, duties, 10, 20, defaultProfile));
+        Assert.Equal(territoryProfile, ProfileRules.Resolve(territories, duties, 10, 21, defaultProfile));
+        Assert.Equal(defaultProfile, ProfileRules.Resolve(territories, duties, 11, 21, defaultProfile));
     }
 
     [Fact]
@@ -103,5 +104,16 @@ public sealed class ProfileRulesTests
         Assert.Single(assignments, value => value.Scope == AssignmentScope.Territory && value.TargetId == 100);
         Assert.Single(assignments, value => value.Scope == AssignmentScope.Territory && value.TargetId == 999);
         Assert.Single(assignments, value => value.Scope == AssignmentScope.Duty && value.TargetId == 101);
+    }
+
+    [Fact]
+    public void MissingDefaultProfileFallsBackToDefault()
+    {
+        var profile = new CursorProfile { Name = "Existing" };
+        var profiles = new List<CursorProfile> { profile };
+
+        Assert.Equal(profile.Id, ProfileRules.NormalizeDefaultProfileId(profiles, profile.Id));
+        Assert.Equal(Guid.Empty, ProfileRules.NormalizeDefaultProfileId(profiles, Guid.NewGuid()));
+        Assert.Equal(Guid.Empty, ProfileRules.NormalizeDefaultProfileId(profiles, Guid.Empty));
     }
 }
