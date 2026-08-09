@@ -14,11 +14,15 @@ CursorRing is a Dalamud plugin that replaces the Final Fantasy XIV cursor with a
 
 ## Installation
 
-Build `CursorRing.sln`, then add the resulting `CursorRing.dll` as a Dalamud development plugin through `/xlsettings`.
+In `/xlsettings`, open `Experimental`, add this URL under `Custom Plugin Repositories`, and save:
 
-The Debug output is located at `CursorRing/bin/x64/Debug/CursorRing.dll`. Open the plugin settings with `/cursorring` or the configuration button in `/xlplugins`.
+```text
+https://raw.githubusercontent.com/ptMuta/CursorRing/master/repo.json
+```
 
-Debug and Benchmark builds provide `/cursorring benchmark` and a settings button for collecting a 10-second benchmark after a visible three-second countdown. Benchmark builds are optimized and produce representative timing results at `CursorRing/bin/x64/Benchmark/CursorRing.dll`. Results include render-path elapsed time, managed allocations, ImGui geometry, active-GCD and cast-segment samples, and the share of a 144 Hz frame budget. Release builds exclude the collector, command path, interface, telemetry, and result types at compile time.
+Open `/xlplugins`, search for `CursorRing`, and select `Install`.
+
+To use a development build, build `CursorRing.sln`, then add the resulting `CursorRing/bin/x64/Debug/CursorRing.dll` as a Dalamud development plugin through `/xlsettings`.
 
 ## Development
 

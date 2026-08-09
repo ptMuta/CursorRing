@@ -101,6 +101,62 @@ jobs:
             $archive.Dispose()
           }
 
+      - name: Validate custom repository
+        shell: pwsh
+        run: |
+          $entries = @(Get-Content '.\repo.json' -Raw | ConvertFrom-Json)
+          if ($entries.Count -ne 1) {
+            throw 'Custom repository must contain exactly one entry.'
+          }
+          $entry = $entries[0]
+          $required = 'Author', 'Name', 'InternalName', 'AssemblyVersion', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'RepoUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate', 'LastUpdate'
+          $missing = $required | Where-Object { [string]::IsNullOrWhiteSpace([string]$entry.$_) }
+          if ($missing) {
+            throw "Custom repository is missing: $($missing -join ', ')"
+          }
+          if ($entry.IsHide -ne $false -or $entry.IsTestingExclusive -ne $false) {
+            throw 'Custom repository entry must be visible and installable without testing mode.'
+          }
+          foreach ($property in 'RepoUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate') {
+            $uri = [Uri]$entry.$property
+            if (-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https') {
+              throw "$property must be an absolute HTTPS URL."
+            }
+          }
+          if ($entry.DownloadLinkInstall -ne $entry.DownloadLinkUpdate) {
+            throw 'Install and update links must reference the same release package.'
+          }
+          if ([string]$entry.LastUpdate -notmatch '^\d+$') {
+            throw 'LastUpdate must be a Unix timestamp.'
+          }
+          if ([long]$entry.LastUpdate -gt [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) {
+            throw 'LastUpdate cannot be in the future.'
+          }
+          $archivePath = '.\CursorRing\bin\x64\Release\CursorRing\latest.zip'
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            $manifestEntry = $archive.GetEntry('CursorRing.json')
+            $reader = [System.IO.StreamReader]::new($manifestEntry.Open())
+            try {
+              $manifest = $reader.ReadToEnd() | ConvertFrom-Json
+            }
+            finally {
+              $reader.Dispose()
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
+          foreach ($property in 'Author', 'Name', 'InternalName', 'AssemblyVersion', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'AcceptsFeedback') {
+            if ($entry.$property -ne $manifest.$property) {
+              throw "Custom repository $property does not match the packaged manifest."
+            }
+          }
+          $response = Invoke-WebRequest -Uri $entry.DownloadLinkInstall -Method Head
+          if ($response.StatusCode -ne 200) {
+            throw "Release package returned HTTP $($response.StatusCode)."
+          }
+
       - name: Store artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
