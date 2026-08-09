@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <PackageProjectUrl>https://github.com/ptMuta/CursorRing</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Configurations>Debug;Release;Benchmark</Configurations>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);CURSORRING_BENCHMARK</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Benchmark'">
+    <Optimize>true</Optimize>
+    <DefineConstants>$(DefineConstants);CURSORRING_BENCHMARK</DefineConstants>
+  </PropertyGroup>
+  <Target Name="PackageBenchmark" AfterTargets="Build" Condition="'$(Configuration)' == 'Benchmark'">
+    <DalamudPackager ProjectDir="$(ProjectDir)"
+                     OutputPath="$(OutputPath)"
+                     AssemblyName="$(AssemblyName)"
+                     MakeZip="false"
+                     Author="$(Author)"
+                     Name="$(Name)"
+                     MinimumDalamudVersion="$(MinimumDalamudVersion)"
+                     Punchline="$(Punchline)"
+                     Description="$(Description)"
+                     ApplicableVersion="$(ApplicableVersion)"
+                     RepoUrl="$(RepoUrl)"
+                     Tags="$(Tags)"
+                     CategoryTags="$(CategoryTags)"
+                     DalamudApiLevel="$(DalamudApiLevel)"
+                     LoadRequiredState="$(LoadRequiredState)"
+                     LoadSync="$(LoadSync)"
+                     CanUnloadAsync="$(CanUnloadAsync)"
+                     LoadPriority="$(LoadPriority)"
+                     ImageUrls="$(ImageUrls)"
+                     IconUrl="$(IconUrl)"
+                     Changelog="$(Changelog)"
+                     AcceptsFeedback="$(AcceptsFeedback)"
+                     FeedbackMessage="$(FeedbackMessage)" />
+  </Target>
+</Project>

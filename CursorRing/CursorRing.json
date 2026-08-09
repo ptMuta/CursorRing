@@ -1,0 +1,12 @@
+{
+  "Author": "ptMuta",
+  "Name": "CursorRing",
+  "Punchline": "A configurable circular cursor with GCD progress.",
+  "Description": "Replaces the in-game cursor with a hollow ring and center dot. Global cooldown progress can appear as an inner ring, outer ring, stroke overlay, or pie overlay. Open settings with /cursorring.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "cursor",
+    "combat",
+    "accessibility"
+  ]
+}

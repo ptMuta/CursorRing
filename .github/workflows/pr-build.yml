@@ -1,39 +1,104 @@
-name: Sample PR Builder for SamplePlugin
+name: CursorRing pull request
 
 on:
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
-
   build:
     runs-on: windows-2022
-
-    env:
-      Solution_Name: SamplePlugin
-
     steps:
-    - name: Checkout
-      uses: actions/checkout@v5
+      - name: Checkout
+        uses: actions/checkout@v5
 
-    - name: Install .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: 10.0.x
+      - name: Install .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
 
-    - name: Download Dalamud
-      run: |
-        Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
-        Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
+      - name: Download Dalamud
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://goatcorp.github.io/dalamud-distrib/latest.zip -OutFile latest.zip
+          Expand-Archive -Force latest.zip "$env:AppData\XIVLauncher\addon\Hooks\dev"
 
-    - name: Build with dotnet
-      run: dotnet build --configuration Release
+      - name: Enforce comment-free C#
+        shell: pwsh
+        run: |
+          $matches = git ls-files '*.cs' | ForEach-Object { Select-String -Path $_ -Pattern '//|/\*|\*/' }
+          if ($matches) {
+            $matches
+            exit 1
+          }
 
-    - name: Store artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: SamplePlugin
-        path: .\SamplePlugin\bin\x64\Release\SamplePlugin\*
-        if-no-files-found: error
-        retention-days: 1
+      - name: Restore
+        run: dotnet restore CursorRing.sln --locked-mode
 
+      - name: Verify formatting
+        run: dotnet format CursorRing.sln --verify-no-changes --no-restore
+
+      - name: Build Debug
+        run: dotnet build CursorRing.sln --configuration Debug --no-restore
+
+      - name: Build Benchmark
+        run: dotnet build CursorRing.sln --configuration Benchmark --no-restore
+
+      - name: Verify Benchmark development plugin
+        shell: pwsh
+        run: |
+          $output = '.\CursorRing\bin\x64\Benchmark'
+          if (-not (Test-Path "$output\CursorRing.dll") -or -not (Test-Path "$output\CursorRing.json")) {
+            throw 'Benchmark development plugin output is incomplete.'
+          }
+          $manifest = Get-Content "$output\CursorRing.json" -Raw | ConvertFrom-Json
+          if (-not $manifest.InternalName -or -not $manifest.AssemblyVersion -or -not $manifest.DalamudApiLevel) {
+            throw 'Benchmark development plugin manifest is incomplete.'
+          }
+
+      - name: Build Release
+        run: dotnet build CursorRing.sln --configuration Release --no-restore
+
+      - name: Verify benchmark exclusion
+        shell: pwsh
+        run: |
+          $assemblyPath = '.\CursorRing\bin\x64\Release\CursorRing.dll'
+          $assemblyBytes = [System.IO.File]::ReadAllBytes($assemblyPath)
+          $assemblyText = [System.Text.Encoding]::UTF8.GetString($assemblyBytes)
+          $assemblyHex = [Convert]::ToHexString($assemblyBytes)
+          $markers = 'RenderBenchmark', 'RenderWork', 'DrawMeasured', 'GetAllocatedBytesForCurrentThread', '/cursorring benchmark'
+          $foundMarkers = $markers | Where-Object {
+            $unicodeHex = [Convert]::ToHexString([System.Text.Encoding]::Unicode.GetBytes($_))
+            $assemblyText.Contains($_) -or $assemblyHex.Contains($unicodeHex)
+          }
+          if ($foundMarkers) {
+            throw "Release assembly contains benchmark code: $($foundMarkers -join ', ')"
+          }
+
+      - name: Test
+        run: dotnet test CursorRing.Tests\CursorRing.Tests.csproj --configuration Release --property:Platform=x64 --no-build --no-restore
+
+      - name: Validate package
+        shell: pwsh
+        run: |
+          $archivePath = '.\CursorRing\bin\x64\Release\CursorRing\latest.zip'
+          if (-not (Test-Path $archivePath)) {
+            throw 'Release package was not created.'
+          }
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($archivePath)
+          try {
+            $names = $archive.Entries.Name
+            if ('CursorRing.dll' -notin $names -or 'CursorRing.json' -notin $names) {
+              throw 'Release package is incomplete.'
+            }
+          }
+          finally {
+            $archive.Dispose()
+          }
+
+      - name: Store artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CursorRing
+          path: .\CursorRing\bin\x64\Release\CursorRing\latest.zip
+          if-no-files-found: error
+          retention-days: 1
