@@ -52,9 +52,21 @@ Optional circle and dot outlines render immediately beneath their corresponding 
 
 The main circle, center dot, and GCD indicator each have a one-pixel black outline enabled by default. Stroke presentations use a wider under-stroke. With a background track, the GCD outline covers the complete second ring; without one, it follows only the visible fill or drain interval. Pie presentation uses an inset foreground over a border-colored sector or disk. Inner and outer ring placement includes enabled main-ring and GCD outlines when preserving configured spacing. An oversized inner outline contracts with the foreground stroke so the complete second ring stays between the center and the main ring.
 
+## Profiles and assignments
+
+The root configuration remains the permanent Default profile so existing configuration files retain their settings without migration. Named profiles own complete deep-copied settings snapshots and do not inherit or merge values. Profile identifiers and names are repaired during normalization, nested settings are normalized independently, and assignments with malformed targets or missing profiles are discarded.
+
+Instance data is catalogued once from every named content-finder row with a territory. Rows with the same localized duty name and territory share the first row identifier as a stable duty-equivalent key. Territory rows sharing the same game-data place-name row similarly share one zone assignment target. Runtime assignment dictionaries are rebuilt only after configuration changes. Resolution applies a duty assignment first, then a zone assignment, then Default; an assignment whose profile identifier is empty explicitly selects Default.
+
+The active settings reference is cached. Zone initialization supplies both the territory and content-finder row, while initial construction also reads the current duty state so loading inside content resolves immediately. A changed active reference resets cursor ownership and cast tracking before another render. The renderer reads that reference once at the start of each frame and performs no assignment collection work.
+
 ## Configuration interface
 
-The settings window is one scrolling form with a live preview followed by visibility, cursor appearance, GCD, and cast timing sections, then a clearly scoped reset action. Every value control has a persistent sentence-case label and visible unit. Labels occupy a consistent compact desktop column while values use the remaining width.
+The settings window separates complete profile editing from location assignments. Default is permanent, while named profiles can be created from any existing profile, renamed, previewed, reset, and deleted with their assignments. Profile names appear only in task-specific popovers.
+
+Assignments use a bounded mapping table with Scope, Location, and Profile columns. A permanent unsaved row defaults to the current duty while inside one and the current zone otherwise, except when that target is already assigned. It retains the other current location as the default when its scope changes. Existing rows remain directly editable, duplicate targets are unavailable, and duty or zone searches are rendered only while their selector is open. Assignment targets use localized duty and place names and retain unknown identifiers as removable entries.
+
+Every value control has a persistent sentence-case label and visible unit. Labels occupy a consistent compact desktop column while values use the remaining width.
 
 Checkboxes enable optional features and reveal only their directly related controls. Short helper text is reserved for behavior that a concise label cannot explain, such as the background track and predicted versus confirmed slidecast timing. Changes save immediately, and the single reset action states its full scope. This follows the form-label, helper-text, grouping, and conditional-disclosure guidance in the [Carbon Design System](https://preview.carbondesignsystem.com/building-blocks/core/patterns/forms) and [GOV.UK Design System](https://design-system.service.gov.uk/components/radios/).
 

@@ -13,7 +13,7 @@ namespace CursorRing;
 internal sealed class CursorRenderer
 {
     private const MouseButtonFlags MouseLookButtons = MouseButtonFlags.LBUTTON | MouseButtonFlags.RBUTTON;
-    private readonly CursorSettings settings;
+    private readonly ProfileManager profiles;
     private readonly ICondition condition;
     private readonly IClientState clientState;
     private readonly IPlayerState playerState;
@@ -27,7 +27,7 @@ internal sealed class CursorRenderer
     private bool castSegmentationEnabled;
 
     internal CursorRenderer(
-        CursorSettings settings,
+        ProfileManager profiles,
         ICondition condition,
         IClientState clientState,
         IPlayerState playerState,
@@ -35,7 +35,7 @@ internal sealed class CursorRenderer
         IUiBuilder uiBuilder,
         IPluginLog log)
     {
-        this.settings = settings;
+        this.profiles = profiles;
         this.condition = condition;
         this.clientState = clientState;
         this.playerState = playerState;
@@ -72,7 +72,8 @@ internal sealed class CursorRenderer
 #endif
         try
         {
-            if (!TryGetPosition(out var position))
+            var settings = profiles.ActiveSettings;
+            if (!TryGetPosition(settings, out var position))
             {
                 Hide();
                 return false;
@@ -218,7 +219,7 @@ internal sealed class CursorRenderer
         drawList.AddCircleFilled(center, dotRadius, dotColor);
     }
 
-    private unsafe bool TryGetPosition(out Vector2 position)
+    private unsafe bool TryGetPosition(CursorSettings settings, out Vector2 position)
     {
         position = default;
         if (!clientState.IsLoggedIn || !playerState.IsLoaded || !uiBuilder.ShouldModifyUi || ImGui.GetIO().AppFocusLost)

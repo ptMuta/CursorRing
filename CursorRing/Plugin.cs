@@ -25,12 +25,16 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
+    [PluginService] internal static IDutyState DutyState { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IAddonEventManager AddonEventManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("CursorRing");
     private readonly ConfigWindow configWindow;
     private readonly CursorRenderer renderer;
+    private readonly ProfileManager profiles;
+    private readonly InstanceCatalog catalog;
 
     public Plugin()
     {
@@ -40,8 +44,16 @@ public sealed class Plugin : IDalamudPlugin
             Configuration.Save();
         }
 
-        configWindow = new ConfigWindow(Configuration);
-        renderer = new CursorRenderer(Configuration, Condition, ClientState, PlayerState, AddonEventManager, PluginInterface.UiBuilder, Log);
+        catalog = new InstanceCatalog(DataManager);
+        if (catalog.NormalizeAssignments(Configuration.Assignments))
+        {
+            Configuration.Save();
+        }
+        profiles = new ProfileManager(Configuration);
+        profiles.Resolve(catalog.GetZoneGroup(ClientState.TerritoryType), catalog.GetDutyGroup(DutyState.ContentFinderCondition.RowId));
+        configWindow = new ConfigWindow(Configuration, profiles, catalog);
+        renderer = new CursorRenderer(profiles, Condition, ClientState, PlayerState, AddonEventManager, PluginInterface.UiBuilder, Log);
+        profiles.OnActiveChanged += renderer.ResetState;
         windowSystem.AddWindow(configWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -54,6 +66,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi += configWindow.Toggle;
         PluginInterface.UiBuilder.OpenConfigUi += configWindow.Toggle;
         ClientState.Logout += OnLogout;
+        ClientState.ZoneInit += OnZoneInit;
     }
 
     internal Configuration Configuration { get; }
@@ -65,6 +78,8 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= configWindow.Toggle;
         PluginInterface.UiBuilder.OpenConfigUi -= configWindow.Toggle;
         ClientState.Logout -= OnLogout;
+        ClientState.ZoneInit -= OnZoneInit;
+        profiles.OnActiveChanged -= renderer.ResetState;
         CommandManager.RemoveHandler(CommandName);
         renderer.ResetState();
         windowSystem.RemoveAllWindows();
@@ -122,5 +137,16 @@ public sealed class Plugin : IDalamudPlugin
     private void OnLogout(int type, int code)
     {
         renderer.ResetState();
+        profiles.Resolve(0, 0);
+    }
+
+    private void OnZoneInit(Dalamud.Game.ClientState.ZoneInitEventArgs args)
+    {
+        ResolveProfile(args.TerritoryType.RowId, args.ContentFinderCondition.RowId);
+    }
+
+    private void ResolveProfile(uint territoryId, uint dutyId)
+    {
+        profiles.Resolve(catalog.GetZoneGroup(territoryId), catalog.GetDutyGroup(dutyId));
     }
 }
