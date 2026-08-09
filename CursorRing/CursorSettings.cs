@@ -170,6 +170,52 @@ public class CursorSettings
         return changed;
     }
 
+    public CursorSettings Copy()
+    {
+        var copy = new CursorSettings();
+        copy.CopyFrom(this);
+        return copy;
+    }
+
+    public void CopyFrom(CursorSettings source)
+    {
+        Version = source.Version;
+        Visibility = source.Visibility;
+        MouseLook = source.MouseLook;
+        RingDiameter = source.RingDiameter;
+        RingThickness = source.RingThickness;
+        DotDiameter = source.DotDiameter;
+        RingColor = source.RingColor;
+        DotColor = source.DotColor;
+        ShowRingBorder = source.ShowRingBorder;
+        RingBorderThickness = source.RingBorderThickness;
+        RingBorderColor = source.RingBorderColor;
+        ShowDotBorder = source.ShowDotBorder;
+        DotBorderThickness = source.DotBorderThickness;
+        DotBorderColor = source.DotBorderColor;
+        ShowGcd = source.ShowGcd;
+        GcdPlacement = source.GcdPlacement;
+        OverlayFill = source.OverlayFill;
+        ProgressBehavior = source.ProgressBehavior;
+        Rotation = source.Rotation;
+        GcdThickness = source.GcdThickness;
+        GcdSpacing = source.GcdSpacing;
+        GcdColor = source.GcdColor;
+        ShowGcdTrack = source.ShowGcdTrack;
+        GcdTrackColor = source.GcdTrackColor;
+        ShowGcdBorder = source.ShowGcdBorder;
+        GcdBorderThickness = source.GcdBorderThickness;
+        GcdBorderColor = source.GcdBorderColor;
+        ShowCastSegments = source.ShowCastSegments;
+        SlidecastTiming = source.SlidecastTiming;
+        SlidecastPredictionMilliseconds = source.SlidecastPredictionMilliseconds;
+        CastSegmentColor = source.CastSegmentColor;
+        SlidecastSegmentColor = source.SlidecastSegmentColor;
+        ShowSegmentDividers = source.ShowSegmentDividers;
+        SegmentDividerThickness = source.SegmentDividerThickness;
+        SegmentDividerColor = source.SegmentDividerColor;
+    }
+
     private static T NormalizeEnum<T>(T value, T fallback) where T : struct, Enum
     {
         return Enum.IsDefined(value) ? value : fallback;
@@ -204,4 +250,24 @@ public class CursorSettings
         setter(value);
         return true;
     }
+}
+
+public enum AssignmentScope
+{
+    Territory,
+    Duty
+}
+
+public sealed class CursorProfile
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = string.Empty;
+    public CursorSettings Settings { get; set; } = new();
+}
+
+public sealed class CursorAssignment
+{
+    public AssignmentScope Scope { get; set; }
+    public uint TargetId { get; set; }
+    public Guid ProfileId { get; set; }
 }
