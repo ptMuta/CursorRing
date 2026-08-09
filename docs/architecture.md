@@ -20,6 +20,8 @@ During mouse capture, FFXIV repeatedly recenters the underlying pointer. CursorR
 
 ## Global cooldown
 
+The GCD indicator is enabled by default. Disabling it hides every dependent setting, skips native GCD and cast reads, resets tracked cast state, and leaves cursor rendering otherwise unchanged.
+
 FFXIV Action sheet cooldown group 58 maps to zero-based runtime recast group 57. CursorRing obtains its detail through `ActionManager.GetRecastGroupDetail`. `RecastDetail.Elapsed` increases toward `RecastDetail.Total`. CursorRing accepts either the native active flag or an advancing valid timer, rejects an idle zero timer when the flag is false, normalizes active progress to the zero-inclusive and one-exclusive range, and hides the indicator immediately at completion.
 
 Fill mode draws the elapsed interval from twelve o'clock. Drain mode draws the remaining interval after the elapsed interval. Rotation changes the sign of a full turn.

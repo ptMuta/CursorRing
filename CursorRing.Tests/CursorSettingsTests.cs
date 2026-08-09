@@ -11,6 +11,7 @@ public sealed class CursorSettingsTests
 
         Assert.Equal(VisibilityMode.CombatOnly, settings.Visibility);
         Assert.Equal(MouseLookVisibility.CombatOnly, settings.MouseLook);
+        Assert.True(settings.ShowGcd);
         Assert.Equal(GcdPlacement.Outer, settings.GcdPlacement);
         Assert.Equal(ProgressBehavior.Drain, settings.ProgressBehavior);
         Assert.Equal(RotationDirection.Clockwise, settings.Rotation);
@@ -115,6 +116,7 @@ public sealed class CursorSettingsTests
             ShowDotBorder = true,
             DotBorderThickness = 10f,
             DotBorderColor = Vector4.One,
+            ShowGcd = false,
             GcdPlacement = GcdPlacement.Inner,
             OverlayFill = OverlayFillStyle.Pie,
             ProgressBehavior = ProgressBehavior.Fill,

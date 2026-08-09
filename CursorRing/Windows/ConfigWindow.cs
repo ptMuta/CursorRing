@@ -89,104 +89,113 @@ internal sealed class ConfigWindow : Window
         }
 
         DrawSection("Global cooldown", "Shown only while the global cooldown is active.");
-        if (BeginForm("gcd"))
+        var showGcd = configuration.ShowGcd;
+        if (ImGui.Checkbox("GCD indicator", ref showGcd))
         {
-            changed |= DrawEnum("gcd_placement", "Placement", configuration.GcdPlacement, GcdPlacementLabel, value => configuration.GcdPlacement = value);
-            if (configuration.GcdPlacement == GcdPlacement.Overlay)
-            {
-                changed |= DrawEnum("overlay_style", "Overlay style", configuration.OverlayFill, OverlayFillLabel, value => configuration.OverlayFill = value);
-            }
-            else
-            {
-                changed |= DrawFloat("gcd_thickness", "Ring thickness", configuration.GcdThickness, 1f, 20f, "%.1f px", value => configuration.GcdThickness = value);
-                changed |= DrawFloat("gcd_spacing", "Gap from cursor ring", configuration.GcdSpacing, 0f, 40f, "%.1f px", value => configuration.GcdSpacing = value);
-            }
-
-            changed |= DrawEnum("progress_behavior", "Progress behavior", configuration.ProgressBehavior, ProgressBehaviorLabel, value => configuration.ProgressBehavior = value);
-            changed |= DrawEnum("rotation_direction", "Rotation direction", configuration.Rotation, RotationLabel, value => configuration.Rotation = value);
-            changed |= DrawColor("gcd_color", "GCD / post-cast color", configuration.GcdColor, value => configuration.GcdColor = value);
-            ImGui.EndTable();
-        }
-
-        var showTrack = configuration.ShowGcdTrack;
-        if (ImGui.Checkbox("Background track", ref showTrack))
-        {
-            configuration.ShowGcdTrack = showTrack;
+            configuration.ShowGcd = showGcd;
             changed = true;
         }
-        if (configuration.ShowGcdTrack)
+        if (configuration.ShowGcd)
         {
-            ImGui.Indent();
-            DrawHint("Shows the complete GCD path behind the moving progress.");
-            if (BeginForm("gcd_track"))
+            if (BeginForm("gcd"))
             {
-                changed |= DrawColor("track_color", "Color", configuration.GcdTrackColor, value => configuration.GcdTrackColor = value);
-                ImGui.EndTable();
-            }
-            ImGui.Unindent();
-        }
-
-        var showGcdBorder = configuration.ShowGcdBorder;
-        if (ImGui.Checkbox("GCD outline", ref showGcdBorder))
-        {
-            configuration.ShowGcdBorder = showGcdBorder;
-            changed = true;
-        }
-        if (configuration.ShowGcdBorder)
-        {
-            ImGui.Indent();
-            if (BeginForm("gcd_outline"))
-            {
-                changed |= DrawFloat("gcd_outline_thickness", "Thickness", configuration.GcdBorderThickness, 1f, 20f, "%.1f px", value => configuration.GcdBorderThickness = value);
-                changed |= DrawColor("gcd_outline_color", "Color", configuration.GcdBorderColor, value => configuration.GcdBorderColor = value);
-                ImGui.EndTable();
-            }
-            ImGui.Unindent();
-        }
-
-        DrawSection("Cast timing", "Optionally divide casted GCD actions into casting, slidecast, and post-cast segments.");
-        var showCastSegments = configuration.ShowCastSegments;
-        if (ImGui.Checkbox("Cast timing segments", ref showCastSegments))
-        {
-            configuration.ShowCastSegments = showCastSegments;
-            changed = true;
-        }
-        if (configuration.ShowCastSegments)
-        {
-            ImGui.Indent();
-            DrawHint("Cast end uses the live adjusted duration. Instant and off-GCD actions remain unsegmented.");
-            if (BeginForm("cast_timing"))
-            {
-                changed |= DrawEnum("slidecast_timing", "Timing source", configuration.SlidecastTiming, SlidecastTimingLabel, value => configuration.SlidecastTiming = value);
-                if (configuration.SlidecastTiming != SlidecastTimingMode.Confirmed)
+                changed |= DrawEnum("gcd_placement", "Placement", configuration.GcdPlacement, GcdPlacementLabel, value => configuration.GcdPlacement = value);
+                if (configuration.GcdPlacement == GcdPlacement.Overlay)
                 {
-                    changed |= DrawFloat("predicted_grace", "Predicted grace window", configuration.SlidecastPredictionMilliseconds, 0f, 1000f, "%.0f ms", value => configuration.SlidecastPredictionMilliseconds = value);
+                    changed |= DrawEnum("overlay_style", "Overlay style", configuration.OverlayFill, OverlayFillLabel, value => configuration.OverlayFill = value);
+                }
+                else
+                {
+                    changed |= DrawFloat("gcd_thickness", "Ring thickness", configuration.GcdThickness, 1f, 20f, "%.1f px", value => configuration.GcdThickness = value);
+                    changed |= DrawFloat("gcd_spacing", "Gap from cursor ring", configuration.GcdSpacing, 0f, 40f, "%.1f px", value => configuration.GcdSpacing = value);
                 }
 
-                changed |= DrawColor("casting_color", "Casting color", configuration.CastSegmentColor, value => configuration.CastSegmentColor = value);
-                changed |= DrawColor("slidecast_color", "Slidecast color", configuration.SlidecastSegmentColor, value => configuration.SlidecastSegmentColor = value);
+                changed |= DrawEnum("progress_behavior", "Progress behavior", configuration.ProgressBehavior, ProgressBehaviorLabel, value => configuration.ProgressBehavior = value);
+                changed |= DrawEnum("rotation_direction", "Rotation direction", configuration.Rotation, RotationLabel, value => configuration.Rotation = value);
+                changed |= DrawColor("gcd_color", "GCD / post-cast color", configuration.GcdColor, value => configuration.GcdColor = value);
                 ImGui.EndTable();
             }
 
-            DrawHint(SlidecastTimingDescription(configuration.SlidecastTiming));
-            var showDividers = configuration.ShowSegmentDividers;
-            if (ImGui.Checkbox("Segment dividers", ref showDividers))
+            var showTrack = configuration.ShowGcdTrack;
+            if (ImGui.Checkbox("Background track", ref showTrack))
             {
-                configuration.ShowSegmentDividers = showDividers;
+                configuration.ShowGcdTrack = showTrack;
                 changed = true;
             }
-            if (configuration.ShowSegmentDividers)
+            if (configuration.ShowGcdTrack)
             {
                 ImGui.Indent();
-                if (BeginForm("segment_dividers"))
+                DrawHint("Shows the complete GCD path behind the moving progress.");
+                if (BeginForm("gcd_track"))
                 {
-                    changed |= DrawFloat("divider_thickness", "Thickness", configuration.SegmentDividerThickness, 1f, 10f, "%.1f px", value => configuration.SegmentDividerThickness = value);
-                    changed |= DrawColor("divider_color", "Color", configuration.SegmentDividerColor, value => configuration.SegmentDividerColor = value);
+                    changed |= DrawColor("track_color", "Color", configuration.GcdTrackColor, value => configuration.GcdTrackColor = value);
                     ImGui.EndTable();
                 }
                 ImGui.Unindent();
             }
-            ImGui.Unindent();
+
+            var showGcdBorder = configuration.ShowGcdBorder;
+            if (ImGui.Checkbox("GCD outline", ref showGcdBorder))
+            {
+                configuration.ShowGcdBorder = showGcdBorder;
+                changed = true;
+            }
+            if (configuration.ShowGcdBorder)
+            {
+                ImGui.Indent();
+                if (BeginForm("gcd_outline"))
+                {
+                    changed |= DrawFloat("gcd_outline_thickness", "Thickness", configuration.GcdBorderThickness, 1f, 20f, "%.1f px", value => configuration.GcdBorderThickness = value);
+                    changed |= DrawColor("gcd_outline_color", "Color", configuration.GcdBorderColor, value => configuration.GcdBorderColor = value);
+                    ImGui.EndTable();
+                }
+                ImGui.Unindent();
+            }
+
+            DrawSection("Cast timing", "Optionally divide casted GCD actions into casting, slidecast, and post-cast segments.");
+            var showCastSegments = configuration.ShowCastSegments;
+            if (ImGui.Checkbox("Cast timing segments", ref showCastSegments))
+            {
+                configuration.ShowCastSegments = showCastSegments;
+                changed = true;
+            }
+            if (configuration.ShowCastSegments)
+            {
+                ImGui.Indent();
+                DrawHint("Cast end uses the live adjusted duration. Instant and off-GCD actions remain unsegmented.");
+                if (BeginForm("cast_timing"))
+                {
+                    changed |= DrawEnum("slidecast_timing", "Timing source", configuration.SlidecastTiming, SlidecastTimingLabel, value => configuration.SlidecastTiming = value);
+                    if (configuration.SlidecastTiming != SlidecastTimingMode.Confirmed)
+                    {
+                        changed |= DrawFloat("predicted_grace", "Predicted grace window", configuration.SlidecastPredictionMilliseconds, 0f, 1000f, "%.0f ms", value => configuration.SlidecastPredictionMilliseconds = value);
+                    }
+
+                    changed |= DrawColor("casting_color", "Casting color", configuration.CastSegmentColor, value => configuration.CastSegmentColor = value);
+                    changed |= DrawColor("slidecast_color", "Slidecast color", configuration.SlidecastSegmentColor, value => configuration.SlidecastSegmentColor = value);
+                    ImGui.EndTable();
+                }
+
+                DrawHint(SlidecastTimingDescription(configuration.SlidecastTiming));
+                var showDividers = configuration.ShowSegmentDividers;
+                if (ImGui.Checkbox("Segment dividers", ref showDividers))
+                {
+                    configuration.ShowSegmentDividers = showDividers;
+                    changed = true;
+                }
+                if (configuration.ShowSegmentDividers)
+                {
+                    ImGui.Indent();
+                    if (BeginForm("segment_dividers"))
+                    {
+                        changed |= DrawFloat("divider_thickness", "Thickness", configuration.SegmentDividerThickness, 1f, 10f, "%.1f px", value => configuration.SegmentDividerThickness = value);
+                        changed |= DrawColor("divider_color", "Color", configuration.SegmentDividerColor, value => configuration.SegmentDividerColor = value);
+                        ImGui.EndTable();
+                    }
+                    ImGui.Unindent();
+                }
+                ImGui.Unindent();
+            }
         }
 
         ImGui.Spacing();
@@ -219,7 +228,9 @@ internal sealed class ConfigWindow : Window
         if (benchmark.Phase == BenchmarkPhase.Countdown)
         {
             ImGui.ProgressBar((float)benchmark.CountdownProgress, new Vector2(-1f, 0f), $"Starting in {benchmark.CountdownSecondsRemaining}");
-            ImGui.TextUnformatted("Prepare to use GCD actions when the countdown reaches zero.");
+            ImGui.TextUnformatted(configuration.ShowGcd
+                ? "Prepare to use GCD actions when the countdown reaches zero."
+                : "Keep the cursor visible when the countdown reaches zero.");
             if (ImGui.Button("Cancel benchmark"))
             {
                 benchmark.Cancel();
@@ -228,11 +239,16 @@ internal sealed class ConfigWindow : Window
         else if (benchmark.IsCollecting)
         {
             ImGui.ProgressBar((float)benchmark.Progress, new Vector2(-1f, 0f), $"Running: {benchmark.SampleCount} frames");
-            ImGui.TextUnformatted("Benchmark running. Continue using GCD actions.");
-            ImGui.TextUnformatted(benchmark.GcdDetected ? "GCD detected: yes" : "GCD detected: not yet");
-            if (configuration.ShowCastSegments)
+            ImGui.TextUnformatted(configuration.ShowGcd
+                ? "Benchmark running. Continue using GCD actions."
+                : "Benchmark running. Keep the cursor visible.");
+            if (configuration.ShowGcd)
             {
-                ImGui.TextUnformatted(benchmark.CastSegmentsDetected ? "Cast segments detected: yes" : "Cast segments detected: not yet");
+                ImGui.TextUnformatted(benchmark.GcdDetected ? "GCD detected: yes" : "GCD detected: not yet");
+                if (configuration.ShowCastSegments)
+                {
+                    ImGui.TextUnformatted(benchmark.CastSegmentsDetected ? "Cast segments detected: yes" : "Cast segments detected: not yet");
+                }
             }
             if (ImGui.Button("Cancel benchmark"))
             {
@@ -244,8 +260,11 @@ internal sealed class ConfigWindow : Window
             benchmark.Start();
         }
 
-        var observation = GlobalCooldownReader.LastObservation;
-        ImGui.TextWrapped($"GCD reader: {GcdReadStatusLabel(observation.Status)}, native active {YesNo(observation.NativeActive)}, elapsed {observation.Elapsed:F3}, total {observation.Total:F3}");
+        if (configuration.ShowGcd)
+        {
+            var observation = GlobalCooldownReader.LastObservation;
+            ImGui.TextWrapped($"GCD reader: {GcdReadStatusLabel(observation.Status)}, native active {YesNo(observation.NativeActive)}, elapsed {observation.Elapsed:F3}, total {observation.Total:F3}");
+        }
 
         if (benchmark.LastResult is not { } result)
         {
@@ -286,21 +305,21 @@ internal sealed class ConfigWindow : Window
         var geometry = RingMath.GetGeometry(configuration);
         var ringBorder = configuration.ShowRingBorder ? configuration.RingBorderThickness : 0f;
         var dotBorder = configuration.ShowDotBorder ? configuration.DotBorderThickness : 0f;
-        var gcdBorder = configuration.ShowGcdBorder ? configuration.GcdBorderThickness : 0f;
+        var gcdBorder = configuration.ShowGcd && configuration.ShowGcdBorder ? configuration.GcdBorderThickness : 0f;
         var ringExtent = geometry.Main + (configuration.RingThickness / 2f) + ringBorder;
         var dotExtent = (configuration.DotDiameter / 2f) + dotBorder;
-        var gcdExtent = configuration.GcdPlacement switch
+        var gcdExtent = configuration.ShowGcd ? configuration.GcdPlacement switch
         {
             GcdPlacement.Outer => geometry.Outer + (configuration.GcdThickness / 2f) + gcdBorder,
             GcdPlacement.Inner => geometry.Inner + (geometry.InnerThickness / 2f) + geometry.InnerBorderThickness,
             GcdPlacement.Overlay when configuration.OverlayFill == OverlayFillStyle.Pie => geometry.Pie,
             _ => geometry.Main + (configuration.RingThickness / 2f) + gcdBorder
-        };
+        } : 0f;
         var extent = MathF.Max(MathF.Max(ringExtent, dotExtent), gcdExtent);
         var scale = MathF.Min(1f, MathF.Min((previewHeight - 10f) / (extent * 2f), (width - 10f) / (extent * 2f)));
         var previewProgress = configuration.ProgressBehavior == ProgressBehavior.Fill ? 0.9f : 0.35f;
-        var gcd = new GcdState(true, previewProgress * 2.5f, 2.5f);
-        var segments = configuration.ShowCastSegments ? new GcdSegments(true, 0.55f, 0.78f, true) : GcdSegments.Inactive;
+        var gcd = configuration.ShowGcd ? new GcdState(true, previewProgress * 2.5f, 2.5f) : GcdState.Inactive;
+        var segments = configuration.ShowGcd && configuration.ShowCastSegments ? new GcdSegments(true, 0.55f, 0.78f, true) : GcdSegments.Inactive;
         CursorRenderer.DrawAt(configuration, ImGui.GetWindowDrawList(), center, gcd, segments, scale);
         ImGui.Dummy(new Vector2(width, previewHeight));
     }

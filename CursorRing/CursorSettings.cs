@@ -73,6 +73,7 @@ public class CursorSettings
     public bool ShowDotBorder { get; set; }
     public float DotBorderThickness { get; set; } = 1f;
     public Vector4 DotBorderColor { get; set; } = DefaultBorderColor;
+    public bool ShowGcd { get; set; } = true;
     public GcdPlacement GcdPlacement { get; set; } = GcdPlacement.Outer;
     public OverlayFillStyle OverlayFill { get; set; } = OverlayFillStyle.Stroke;
     public ProgressBehavior ProgressBehavior { get; set; } = ProgressBehavior.Drain;
@@ -145,6 +146,7 @@ public class CursorSettings
         changed |= Update(ShowDotBorder, false, value => ShowDotBorder = value);
         changed |= Update(DotBorderThickness, 1f, value => DotBorderThickness = value);
         changed |= Update(DotBorderColor, DefaultBorderColor, value => DotBorderColor = value);
+        changed |= Update(ShowGcd, true, value => ShowGcd = value);
         changed |= Update(GcdPlacement, GcdPlacement.Outer, value => GcdPlacement = value);
         changed |= Update(OverlayFill, OverlayFillStyle.Stroke, value => OverlayFill = value);
         changed |= Update(ProgressBehavior, ProgressBehavior.Drain, value => ProgressBehavior = value);
