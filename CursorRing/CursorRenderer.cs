@@ -84,9 +84,9 @@ internal sealed class CursorRenderer
             var verticesBefore = measureGeometry ? drawList.VtxBuffer.Size : 0;
             var indicesBefore = measureGeometry ? drawList.IdxBuffer.Size : 0;
 #endif
-            var gcd = GlobalCooldownReader.Read();
+            var gcd = settings.ShowGcd ? GlobalCooldownReader.Read() : GcdState.Inactive;
             var segments = GcdSegments.Inactive;
-            if (settings.ShowCastSegments)
+            if (settings.ShowGcd && settings.ShowCastSegments)
             {
                 castSegmentationEnabled = true;
                 var cast = gcd.IsActive ? LocalCastReader.Read(castSegmentationTracker.NeedsCast(gcd)) : CastSample.Inactive;
@@ -152,6 +152,12 @@ internal sealed class CursorRenderer
         GcdSegments segments,
         float scale = 1f)
     {
+        if (!settings.ShowGcd)
+        {
+            gcd = GcdState.Inactive;
+            segments = GcdSegments.Inactive;
+        }
+
         var geometry = RingMath.GetGeometry(settings);
         var mainRadius = geometry.Main * scale;
         var innerRadius = geometry.Inner * scale;
