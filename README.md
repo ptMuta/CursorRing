@@ -6,16 +6,9 @@ CursorRing is a Dalamud plugin that replaces the Final Fantasy XIV cursor with a
 
 - Always-visible or combat-only cursor replacement
 - Configurable behavior during camera mouse-look
-- Adjustable circle, dot, GCD sizes, spacing, colors, and opacity
-- Optional independent circle and dot outlines with configurable thickness and color
-- Inner, outer, stroke-overlay, and pie-overlay GCD presentations
-- Fill or drain progress in either rotation direction
-- Optional GCD background track and independent outline
+- Highly customisable
+- Optional GCD ring
 - Optional cast, slidecast, and post-cast GCD segments with independent colors
-- Predicted, confirmed-only, or hybrid slidecast timing with configurable prediction
-- Optional colored dividers between timing segments
-- Input-transparent rendering
-- Debug/Benchmark-only runtime performance benchmark
 
 ## Installation
 
@@ -29,9 +22,8 @@ Debug and Benchmark builds provide `/cursorring benchmark` and a settings button
 
 Requirements:
 
-- .NET 10 SDK
 - XIVLauncher and Dalamud
-- A local Dalamud development installation at the standard XIVLauncher path, or `DALAMUD_HOME` pointing to one
+- .NET 10 SDK
 
 Run the verification suite with:
 
@@ -44,17 +36,11 @@ dotnet test CursorRing.Tests\CursorRing.Tests.csproj --configuration Release --p
 dotnet format CursorRing.sln --verify-no-changes --no-restore
 ```
 
-Production and test C# files intentionally contain no comments. Technical rationale is documented in [docs/architecture.md](docs/architecture.md).
-
-## In-game verification
-
-Native game interaction requires manual testing. Verify combat transitions, camera mouse-look, hardware and software cursor modes, focus loss, viewport exit, UI hiding, cutscenes, GPose, zoning, logout, and plugin unload. Confirm that the normal cursor returns whenever CursorRing is not visible. For cast segmentation, test normal completion, movement interruption, instant-cast procs, casts shorter and longer than the GCD, and consecutive casts in all placement and progress modes.
-
-Dalamud exposes cursor replacement as one shared override. Do not run CursorRing alongside another plugin that forces or replaces the game cursor.
+Technical documents in [docs/architecture.md](docs/architecture.md).
 
 ## AI usage
 
-AI tooling was used during implementation. Any submission to the official Dalamud plugin repository must be reviewed and substantially validated by a human, and must follow the current Dalamud AI usage and disclosure policy.
+Generative AI tooling was used during implementation. For primary guidance document for GenAI see [AGENTS.md](AGENTS.md).
 
 ## License
 
