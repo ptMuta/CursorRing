@@ -62,7 +62,7 @@ The active settings reference is cached. Zone initialization supplies both the t
 
 ## Configuration interface
 
-The settings window separates complete profile editing from location assignments. Default is permanent, while named profiles can be created from any existing profile, renamed, previewed, reset, and deleted with their assignments. Profile names appear only in task-specific popovers.
+The settings window separates complete profile editing from location assignments. Default is permanent, while named profiles can be created, duplicated, renamed, previewed, reset, and deleted with their assignments. Any profile can be selected as the unassigned-location default, with the permanent Default used if that selection becomes invalid. Profile actions occupy a stable toolbar. The profile editor keeps a full-height preview beside an independently scrolling editor divided into Cursor, GCD, and Cast timing domains. Compact selects preserve scanability, conditional controls remain visible when relevant, and colors rely on the built-in picker. Benchmark controls occupy a separate build-gated tab.
 
 Assignments use a bounded mapping table with Scope, Location, and Profile columns. A permanent unsaved row defaults to the current duty while inside one and the current zone otherwise, except when that target is already assigned. It retains the other current location as the default when its scope changes. Existing rows remain directly editable, duplicate targets are unavailable, and duty or zone searches are rendered only while their selector is open. Assignment targets use localized duty and place names and retain unknown identifiers as removable entries.
 

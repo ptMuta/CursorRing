@@ -9,6 +9,13 @@ namespace CursorRing.Windows;
 
 internal sealed class ConfigWindow : Window
 {
+    private enum ProfileDomain
+    {
+        Cursor,
+        Gcd,
+        CastTiming
+    }
+
     private static readonly AssignmentScope[] AssignmentScopes = [AssignmentScope.Territory, AssignmentScope.Duty];
     private readonly Configuration configuration;
     private readonly ProfileManager profiles;
@@ -24,6 +31,7 @@ internal sealed class ConfigWindow : Window
     private Guid draftProfileId;
     private string locationSearch = string.Empty;
     private bool assignmentDraftInitialized;
+    private ProfileDomain profileDomain;
 #if CURSORRING_BENCHMARK
     private readonly RenderBenchmark benchmark;
 #endif
@@ -39,8 +47,8 @@ internal sealed class ConfigWindow : Window
 #endif
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(420f, 520f),
-            MaximumSize = new Vector2(640f, 900f)
+            MinimumSize = new Vector2(720f, 520f),
+            MaximumSize = new Vector2(1000f, 900f)
         };
     }
 
@@ -51,7 +59,7 @@ internal sealed class ConfigWindow : Window
             if (ImGui.BeginTabItem("Profiles"))
             {
                 DrawProfileSelector();
-                DrawSettings();
+                DrawProfileEditor();
                 ImGui.EndTabItem();
             }
             if (ImGui.BeginTabItem("Assignments"))
@@ -59,13 +67,21 @@ internal sealed class ConfigWindow : Window
                 DrawAssignments();
                 ImGui.EndTabItem();
             }
+#if CURSORRING_BENCHMARK
+            if (ImGui.BeginTabItem("Benchmark"))
+            {
+                DrawSection("Performance benchmark", "Available only in Debug and Benchmark builds.");
+                DrawBenchmark();
+                ImGui.EndTabItem();
+            }
+#endif
             ImGui.EndTabBar();
         }
     }
 
     public override void OnOpen()
     {
-        selectedProfileId = profiles.ActiveProfileId;
+        selectedProfileId = configuration.DefaultProfileId;
         assignmentDraftInitialized = false;
     }
 
@@ -84,11 +100,67 @@ internal sealed class ConfigWindow : Window
         }
     }
 
-    private void DrawSettings()
+    private void DrawProfileEditor()
     {
-        ImGui.TextUnformatted("Preview");
-        ImGui.Separator();
+        var height = Math.Max(1f, ImGui.GetContentRegionAvail().Y);
+        var flags = ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings;
+        if (!ImGui.BeginTable("profile_editor", 2, flags))
+        {
+            return;
+        }
+        ImGui.TableSetupColumn("Preview", ImGuiTableColumnFlags.WidthStretch, 0.7f);
+        ImGui.TableSetupColumn("Settings", ImGuiTableColumnFlags.WidthStretch, 1.3f);
+        ImGui.TableNextRow();
+        ImGui.TableSetColumnIndex(0);
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, ImGui.GetStyle().Colors[(int)ImGuiCol.FrameBg]);
+        ImGui.BeginChild("profile_preview", new Vector2(0f, height), true);
         DrawPreview();
+        ImGui.EndChild();
+        ImGui.PopStyleColor();
+        ImGui.TableSetColumnIndex(1);
+        DrawProfileSettings();
+        ImGui.EndTable();
+    }
+
+    private void DrawProfileSettings()
+    {
+        if (ImGui.BeginTabBar("profile_domains"))
+        {
+            if (ImGui.BeginTabItem("Cursor"))
+            {
+                profileDomain = ProfileDomain.Cursor;
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem("GCD"))
+            {
+                profileDomain = ProfileDomain.Gcd;
+                ImGui.EndTabItem();
+            }
+            if (ImGui.BeginTabItem("Cast timing"))
+            {
+                profileDomain = ProfileDomain.CastTiming;
+                ImGui.EndTabItem();
+            }
+            ImGui.EndTabBar();
+        }
+        ImGui.BeginChild("profile_settings", new Vector2(0f, Math.Max(1f, ImGui.GetContentRegionAvail().Y)), false);
+        switch (profileDomain)
+        {
+            case ProfileDomain.Gcd:
+                DrawGcdSettings();
+                break;
+            case ProfileDomain.CastTiming:
+                DrawCastSettings();
+                break;
+            default:
+                DrawCursorSettings();
+                break;
+        }
+        ImGui.EndChild();
+    }
+
+    private void DrawCursorSettings()
+    {
         DrawSection("Visibility", "Choose when CursorRing replaces the game cursor.");
         var changed = false;
         if (BeginForm("visibility"))
@@ -145,6 +217,15 @@ internal sealed class ConfigWindow : Window
             ImGui.Unindent();
         }
 
+        if (changed)
+        {
+            configuration.Save();
+        }
+    }
+
+    private void DrawGcdSettings()
+    {
+        var changed = false;
         DrawSection("Global cooldown", "Shown only while the global cooldown is active.");
         var showGcd = Settings.ShowGcd;
         if (ImGui.Checkbox("GCD indicator", ref showGcd))
@@ -182,7 +263,6 @@ internal sealed class ConfigWindow : Window
             if (Settings.ShowGcdTrack)
             {
                 ImGui.Indent();
-                DrawHint("Shows the complete GCD path behind the moving progress.");
                 if (BeginForm("gcd_track"))
                 {
                     changed |= DrawColor("track_color", "Color", Settings.GcdTrackColor, value => Settings.GcdTrackColor = value);
@@ -208,60 +288,195 @@ internal sealed class ConfigWindow : Window
                 }
                 ImGui.Unindent();
             }
+        }
 
-            DrawSection("Cast timing", "Optionally divide casted GCD actions into casting, slidecast, and post-cast segments.");
-            var showCastSegments = Settings.ShowCastSegments;
-            if (ImGui.Checkbox("Cast timing segments", ref showCastSegments))
+        if (changed)
+        {
+            configuration.Save();
+        }
+    }
+
+    private void DrawCastSettings()
+    {
+        DrawSection("Cast timing", "Show cast, slidecast, and post-cast segments on the GCD indicator.");
+        if (!Settings.ShowGcd)
+        {
+            DrawHint("Enable the GCD indicator before configuring cast timing.");
+            return;
+        }
+        var changed = false;
+        var showCastSegments = Settings.ShowCastSegments;
+        if (ImGui.Checkbox("Cast timing segments", ref showCastSegments))
+        {
+            Settings.ShowCastSegments = showCastSegments;
+            changed = true;
+        }
+        if (Settings.ShowCastSegments)
+        {
+            if (BeginForm("cast_timing"))
             {
-                Settings.ShowCastSegments = showCastSegments;
+                changed |= DrawEnum("slidecast_timing", "Timing source", Settings.SlidecastTiming, SlidecastTimingLabel, value => Settings.SlidecastTiming = value);
+                if (Settings.SlidecastTiming != SlidecastTimingMode.Confirmed)
+                {
+                    changed |= DrawFloat("predicted_grace", "Predicted grace window", Settings.SlidecastPredictionMilliseconds, 0f, 1000f, "%.0f ms", value => Settings.SlidecastPredictionMilliseconds = value);
+                }
+                changed |= DrawColor("casting_color", "Casting color", Settings.CastSegmentColor, value => Settings.CastSegmentColor = value);
+                changed |= DrawColor("slidecast_color", "Slidecast color", Settings.SlidecastSegmentColor, value => Settings.SlidecastSegmentColor = value);
+                ImGui.EndTable();
+            }
+
+            var showDividers = Settings.ShowSegmentDividers;
+            if (ImGui.Checkbox("Segment dividers", ref showDividers))
+            {
+                Settings.ShowSegmentDividers = showDividers;
                 changed = true;
             }
-            if (Settings.ShowCastSegments)
+            if (Settings.ShowSegmentDividers)
             {
                 ImGui.Indent();
-                DrawHint("Cast end uses the live adjusted duration. Instant and oGCD actions remain unsegmented.");
-                if (BeginForm("cast_timing"))
+                if (BeginForm("segment_dividers"))
                 {
-                    changed |= DrawEnum("slidecast_timing", "Timing source", Settings.SlidecastTiming, SlidecastTimingLabel, value => Settings.SlidecastTiming = value);
-                    if (Settings.SlidecastTiming != SlidecastTimingMode.Confirmed)
-                    {
-                        changed |= DrawFloat("predicted_grace", "Predicted grace window", Settings.SlidecastPredictionMilliseconds, 0f, 1000f, "%.0f ms", value => Settings.SlidecastPredictionMilliseconds = value);
-                    }
-
-                    changed |= DrawColor("casting_color", "Casting color", Settings.CastSegmentColor, value => Settings.CastSegmentColor = value);
-                    changed |= DrawColor("slidecast_color", "Slidecast color", Settings.SlidecastSegmentColor, value => Settings.SlidecastSegmentColor = value);
+                    changed |= DrawFloat("divider_thickness", "Thickness", Settings.SegmentDividerThickness, 1f, 10f, "%.1f px", value => Settings.SegmentDividerThickness = value);
+                    changed |= DrawColor("divider_color", "Color", Settings.SegmentDividerColor, value => Settings.SegmentDividerColor = value);
                     ImGui.EndTable();
-                }
-
-                DrawHint(SlidecastTimingDescription(Settings.SlidecastTiming));
-                var showDividers = Settings.ShowSegmentDividers;
-                if (ImGui.Checkbox("Segment dividers", ref showDividers))
-                {
-                    Settings.ShowSegmentDividers = showDividers;
-                    changed = true;
-                }
-                if (Settings.ShowSegmentDividers)
-                {
-                    ImGui.Indent();
-                    if (BeginForm("segment_dividers"))
-                    {
-                        changed |= DrawFloat("divider_thickness", "Thickness", Settings.SegmentDividerThickness, 1f, 10f, "%.1f px", value => Settings.SegmentDividerThickness = value);
-                        changed |= DrawColor("divider_color", "Color", Settings.SegmentDividerColor, value => Settings.SegmentDividerColor = value);
-                        ImGui.EndTable();
-                    }
-                    ImGui.Unindent();
                 }
                 ImGui.Unindent();
             }
         }
 
-        ImGui.Spacing();
-        ImGui.Separator();
-        if (ImGui.Button("Reset profile"))
+        if (changed)
         {
-            ImGui.OpenPopup("Reset selected profile?");
+            configuration.Save();
         }
-        if (ImGui.BeginPopupModal("Reset selected profile?", ImGuiWindowFlags.AlwaysAutoResize))
+    }
+
+    private void DrawProfileSelector()
+    {
+        var openNewProfile = false;
+        var openDuplicateProfile = false;
+        var openRenameProfile = false;
+        var setDefaultProfile = false;
+        var openResetProfile = false;
+        var openDeleteProfile = false;
+        var formFlags = ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings;
+        if (ImGui.BeginTable("profile_picker", 2, formFlags))
+        {
+            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 70f);
+            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(0);
+            ImGui.AlignTextToFramePadding();
+            ImGui.TextUnformatted("Profile");
+            ImGui.TableSetColumnIndex(1);
+            var buttonSize = ImGui.GetFrameHeight();
+            const int buttonCount = 6;
+            var itemSpacing = ImGui.GetStyle().ItemSpacing.X;
+            ImGui.SetNextItemWidth(-((buttonSize * buttonCount) + (itemSpacing * (buttonCount + 2))));
+            if (ImGui.BeginCombo("##profile", ProfileSelectionLabel(selectedProfileId)))
+            {
+                if (ImGui.Selectable(ProfileSelectionLabel(Guid.Empty), selectedProfileId == Guid.Empty))
+                {
+                    selectedProfileId = Guid.Empty;
+                }
+                configuration.Profiles.Sort(static (left, right) => string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase));
+                foreach (var profile in configuration.Profiles)
+                {
+                    if (ImGui.Selectable(ProfileSelectionLabel(profile.Id), selectedProfileId == profile.Id))
+                    {
+                        selectedProfileId = profile.Id;
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            ImGui.SameLine();
+            if (selectedProfileId == configuration.DefaultProfileId)
+            {
+                ImGui.BeginDisabled();
+            }
+            if (DrawIconButton(FontAwesomeIcon.Star, "default_profile", selectedProfileId == configuration.DefaultProfileId ? "Default profile" : "Use as default profile", buttonSize))
+            {
+                setDefaultProfile = true;
+            }
+            if (selectedProfileId == configuration.DefaultProfileId)
+            {
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine(0f, itemSpacing * 2f);
+            if (DrawIconButton(FontAwesomeIcon.Plus, "new_profile", "New profile", buttonSize))
+            {
+                openNewProfile = true;
+            }
+            ImGui.SameLine();
+            if (DrawIconButton(FontAwesomeIcon.Clone, "duplicate_profile", "Duplicate profile", buttonSize))
+            {
+                openDuplicateProfile = true;
+            }
+            ImGui.SameLine();
+            if (selectedProfileId == Guid.Empty)
+            {
+                ImGui.BeginDisabled();
+            }
+            if (DrawIconButton(FontAwesomeIcon.Pen, "rename_profile", selectedProfileId == Guid.Empty ? "Default cannot be renamed" : "Rename profile", buttonSize))
+            {
+                openRenameProfile = true;
+            }
+            if (selectedProfileId == Guid.Empty)
+            {
+                ImGui.EndDisabled();
+            }
+            ImGui.SameLine(0f, itemSpacing * 2f);
+            if (DrawIconButton(FontAwesomeIcon.UndoAlt, "reset_profile", "Reset profile to defaults", buttonSize))
+            {
+                openResetProfile = true;
+            }
+            ImGui.SameLine();
+            if (selectedProfileId == Guid.Empty)
+            {
+                ImGui.BeginDisabled();
+            }
+            if (DrawIconButton(FontAwesomeIcon.Trash, "delete_profile", selectedProfileId == Guid.Empty ? "Default cannot be deleted" : "Delete profile", buttonSize))
+            {
+                openDeleteProfile = true;
+            }
+            if (selectedProfileId == Guid.Empty)
+            {
+                ImGui.EndDisabled();
+            }
+            ImGui.EndTable();
+        }
+        ImGui.Separator();
+        if (openNewProfile)
+        {
+            newProfileName = string.Empty;
+            newProfileSourceId = Guid.Empty;
+            ImGui.OpenPopup("New profile");
+        }
+        if (openDuplicateProfile)
+        {
+            var sourceName = selectedProfileId == Guid.Empty ? "Default" : ProfileName(selectedProfileId);
+            newProfileName = sourceName[..Math.Min(sourceName.Length, 59)] + " copy";
+            newProfileSourceId = selectedProfileId;
+            ImGui.OpenPopup("New profile");
+        }
+        if (openRenameProfile)
+        {
+            renameProfileName = ProfileName(selectedProfileId);
+            ImGui.OpenPopup("Rename profile");
+        }
+        if (setDefaultProfile)
+        {
+            profiles.SetDefault(selectedProfileId);
+            configuration.Save();
+        }
+        if (openDeleteProfile)
+        {
+            ImGui.OpenPopup("Delete this profile?");
+        }
+        if (openResetProfile)
+        {
+            ImGui.OpenPopup("Reset this profile?");
+        }
+        if (ImGui.BeginPopupModal("Reset this profile?", ImGuiWindowFlags.AlwaysAutoResize))
         {
             ImGui.TextUnformatted($"Reset {(selectedProfileId == Guid.Empty ? "Default" : ProfileName(selectedProfileId))} to its original settings?");
             if (ImGui.Button("Reset"))
@@ -276,89 +491,6 @@ internal sealed class ConfigWindow : Window
                 ImGui.CloseCurrentPopup();
             }
             ImGui.EndPopup();
-        }
-        ImGui.SameLine();
-        ImGui.TextDisabled("Changes save automatically");
-
-#if CURSORRING_BENCHMARK
-        DrawSection("Performance benchmark", "Available only in Debug and Benchmark builds.");
-        DrawBenchmark();
-#endif
-
-        if (changed)
-        {
-            configuration.Save();
-        }
-    }
-
-    private void DrawProfileSelector()
-    {
-        var openNewProfile = false;
-        var openRenameProfile = false;
-        var openDeleteProfile = false;
-        var formFlags = ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings;
-        if (ImGui.BeginTable("profile_picker", 2, formFlags))
-        {
-            ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 70f);
-            ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableNextRow();
-            ImGui.TableSetColumnIndex(0);
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Profile");
-            ImGui.TableSetColumnIndex(1);
-            var buttonSize = ImGui.GetFrameHeight();
-            var buttonCount = selectedProfileId == Guid.Empty ? 1 : 3;
-            ImGui.SetNextItemWidth(-((buttonSize * buttonCount) + (ImGui.GetStyle().ItemSpacing.X * buttonCount)));
-            if (ImGui.BeginCombo("##profile", selectedProfileId == Guid.Empty ? "Default" : ProfileName(selectedProfileId)))
-            {
-                if (ImGui.Selectable("Default", selectedProfileId == Guid.Empty))
-                {
-                    selectedProfileId = Guid.Empty;
-                }
-                configuration.Profiles.Sort(static (left, right) => string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase));
-                foreach (var profile in configuration.Profiles)
-                {
-                    if (ImGui.Selectable(profile.Name, selectedProfileId == profile.Id))
-                    {
-                        selectedProfileId = profile.Id;
-                    }
-                }
-                ImGui.EndCombo();
-            }
-            ImGui.SameLine();
-            if (DrawIconButton(FontAwesomeIcon.Plus, "new_profile", "New profile", buttonSize))
-            {
-                openNewProfile = true;
-            }
-            if (selectedProfileId != Guid.Empty)
-            {
-                ImGui.SameLine();
-                if (DrawIconButton(FontAwesomeIcon.Pen, "rename_profile", "Rename profile", buttonSize))
-                {
-                    openRenameProfile = true;
-                }
-                ImGui.SameLine();
-                if (DrawIconButton(FontAwesomeIcon.Trash, "delete_profile", "Delete profile", buttonSize))
-                {
-                    openDeleteProfile = true;
-                }
-            }
-            ImGui.EndTable();
-        }
-        if (openNewProfile)
-        {
-            newProfileName = string.Empty;
-            newProfileSourceId = Guid.Empty;
-            ImGui.OpenPopup("New profile");
-        }
-        if (openRenameProfile)
-        {
-            renameProfileName = ProfileName(selectedProfileId);
-            ImGui.OpenPopup("Rename profile");
-        }
-        if (openDeleteProfile)
-        {
-            ImGui.OpenPopup("Delete this profile?");
         }
         if (selectedProfileId != Guid.Empty)
         {
@@ -391,7 +523,7 @@ internal sealed class ConfigWindow : Window
         ImGui.PushFont(UiBuilder.IconFont);
         var pressed = ImGui.Button($"{icon.ToIconString()}##{id}", new Vector2(size, size));
         ImGui.PopFont();
-        if (ImGui.IsItemHovered())
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
         {
             ImGui.SetTooltip(tooltip);
         }
@@ -413,9 +545,6 @@ internal sealed class ConfigWindow : Window
             PopupFormLabel("Name");
             ImGui.SetNextItemWidth(-1f);
             ImGui.InputTextWithHint("##new_profile_name", "Profile name", ref newProfileName, 64);
-            PopupFormLabel("Copy from");
-            ImGui.SetNextItemWidth(-1f);
-            DrawProfileSource();
             ImGui.EndTable();
         }
         var valid = IsUniqueName(newProfileName, Guid.Empty);
@@ -448,26 +577,6 @@ internal sealed class ConfigWindow : Window
         }
         ImGui.EndPopup();
         ImGui.PopStyleVar();
-    }
-
-    private void DrawProfileSource()
-    {
-        if (!ImGui.BeginCombo("##profile_source", newProfileSourceId == Guid.Empty ? "Default" : ProfileName(newProfileSourceId)))
-        {
-            return;
-        }
-        if (ImGui.Selectable("Default", newProfileSourceId == Guid.Empty))
-        {
-            newProfileSourceId = Guid.Empty;
-        }
-        foreach (var profile in configuration.Profiles)
-        {
-            if (ImGui.Selectable(profile.Name, newProfileSourceId == profile.Id))
-            {
-                newProfileSourceId = profile.Id;
-            }
-        }
-        ImGui.EndCombo();
     }
 
     private void DrawRenameProfilePopup()
@@ -975,6 +1084,12 @@ internal sealed class ConfigWindow : Window
 
     private string ProfileName(Guid id) => FindProfile(id)?.Name ?? "Unknown profile";
 
+    private string ProfileSelectionLabel(Guid id)
+    {
+        var name = id == Guid.Empty ? "Default" : ProfileName(id);
+        return id == configuration.DefaultProfileId ? $"★ {name}" : name;
+    }
+
     private bool IsUniqueName(string name, Guid except)
     {
         var trimmed = name.Trim();
@@ -1109,9 +1224,10 @@ internal sealed class ConfigWindow : Window
 
     private void DrawPreview()
     {
-        const float previewHeight = 112f;
         var start = ImGui.GetCursorScreenPos();
-        var width = ImGui.GetContentRegionAvail().X;
+        var available = ImGui.GetContentRegionAvail();
+        var width = available.X;
+        var previewHeight = Math.Max(1f, available.Y);
         var center = start + new Vector2(width / 2f, previewHeight / 2f);
         var geometry = RingMath.GetGeometry(Settings);
         var ringBorder = Settings.ShowRingBorder ? Settings.RingBorderThickness : 0f;
@@ -1199,23 +1315,19 @@ internal sealed class ConfigWindow : Window
         {
             return false;
         }
-
         foreach (var candidate in Enum.GetValues<T>())
         {
             var selected = EqualityComparer<T>.Default.Equals(value, candidate);
             if (ImGui.Selectable(formatter(candidate), selected) && !selected)
             {
-                value = candidate;
                 setter(candidate);
                 changed = true;
             }
-
             if (selected)
             {
                 ImGui.SetItemDefaultFocus();
             }
         }
-
         ImGui.EndCombo();
         return changed;
     }
@@ -1273,19 +1385,9 @@ internal sealed class ConfigWindow : Window
     {
         return value switch
         {
-            SlidecastTimingMode.Predicted => "Prediction only",
-            SlidecastTimingMode.Confirmed => "Game confirmation only",
-            _ => "Prediction, then confirmation"
-        };
-    }
-
-    private static string SlidecastTimingDescription(SlidecastTimingMode value)
-    {
-        return value switch
-        {
-            SlidecastTimingMode.Predicted => "Uses a stable configurable estimate. The marker does not move, but it is not a guaranteed safe threshold.",
-            SlidecastTimingMode.Confirmed => "Shows the slidecast segment only after the game confirms that the cast can no longer be cancelled.",
-            _ => "Starts with the configurable estimate, then moves once to the game-confirmed threshold when it is observed."
+            SlidecastTimingMode.Predicted => "Estimated",
+            SlidecastTimingMode.Confirmed => "Game-confirmed",
+            _ => "Estimated, then confirmed"
         };
     }
 }
