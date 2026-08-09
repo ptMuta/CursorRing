@@ -12,7 +12,7 @@ The ring uses the main viewport foreground draw list. It creates no overlay wind
 
 ## Visibility
 
-Normal visibility is either always or combat-only. Mouse-look applies a second policy because FFXIV captures the pointer during camera control. The default mouse-look policy shows the ring only in combat.
+Normal visibility is either always or combat-only. Mouse-look applies a second policy because FFXIV captures the pointer during camera control. By default, mouse-look follows the normal cursor visibility policy.
 
 The FFXIV client cursor exposes viewport state through FFXIVClientStructs. Mouse-look is detected from the UI-filtered left- or right-button state that FFXIV passes to viewport handling. Window-level cursor capture is not used because it remains active during ordinary focused gameplay. If required native input state is unavailable, the renderer fails closed and returns cursor ownership to the game.
 
@@ -48,9 +48,9 @@ Rendering intersects the semantic intervals with the currently visible fill or d
 
 Inner and outer GCD radii derive from the main radius, both stroke widths, and configured spacing. When an inner ring cannot fit at the requested thickness and spacing, its effective geometry contracts to remain fully inside the main ring. A pie overlay uses the main ring's inner edge and is rendered as a triangle fan so sectors larger than 180 degrees remain valid.
 
-Optional circle and dot outlines render immediately beneath their corresponding foreground shapes. The circle outline reuses the main radius with a wider stroke, while the dot outline uses a larger filled radius. Both are disabled by default and retain independent thickness and color settings.
+Optional circle and dot outlines render immediately beneath their corresponding foreground shapes. The circle outline reuses the main radius with a wider stroke, while the dot outline uses a larger filled radius. Both retain independent thickness and color settings.
 
-The GCD indicator has its own disabled-by-default outline. Stroke presentations use a wider under-stroke. With a background track, the outline covers the complete second ring; without one, it follows only the visible fill or drain interval. Pie presentation uses an inset foreground over a border-colored sector or disk. Inner and outer ring placement includes enabled main-ring and GCD outlines when preserving configured spacing. An oversized inner outline contracts with the foreground stroke so the complete second ring stays between the center and the main ring.
+The main circle, center dot, and GCD indicator each have a one-pixel black outline enabled by default. Stroke presentations use a wider under-stroke. With a background track, the GCD outline covers the complete second ring; without one, it follows only the visible fill or drain interval. Pie presentation uses an inset foreground over a border-colored sector or disk. Inner and outer ring placement includes enabled main-ring and GCD outlines when preserving configured spacing. An oversized inner outline contracts with the foreground stroke so the complete second ring stays between the center and the main ring.
 
 ## Configuration interface
 

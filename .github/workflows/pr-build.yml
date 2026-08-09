@@ -109,7 +109,7 @@ jobs:
             throw 'Custom repository must contain exactly one entry.'
           }
           $entry = $entries[0]
-          $required = 'Author', 'Name', 'InternalName', 'AssemblyVersion', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'RepoUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate', 'LastUpdate'
+          $required = 'Author', 'Name', 'InternalName', 'AssemblyVersion', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'RepoUrl', 'IconUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate', 'LastUpdate'
           $missing = $required | Where-Object { [string]::IsNullOrWhiteSpace([string]$entry.$_) }
           if ($missing) {
             throw "Custom repository is missing: $($missing -join ', ')"
@@ -117,7 +117,7 @@ jobs:
           if ($entry.IsHide -ne $false -or $entry.IsTestingExclusive -ne $false) {
             throw 'Custom repository entry must be visible and installable without testing mode.'
           }
-          foreach ($property in 'RepoUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate') {
+          foreach ($property in 'RepoUrl', 'IconUrl', 'DownloadLinkInstall', 'DownloadLinkUpdate') {
             $uri = [Uri]$entry.$property
             if (-not $uri.IsAbsoluteUri -or $uri.Scheme -ne 'https') {
               throw "$property must be an absolute HTTPS URL."
@@ -147,7 +147,7 @@ jobs:
           finally {
             $archive.Dispose()
           }
-          foreach ($property in 'Author', 'Name', 'InternalName', 'AssemblyVersion', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'AcceptsFeedback') {
+          foreach ($property in 'Author', 'Name', 'InternalName', 'AssemblyVersion', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'IconUrl', 'AcceptsFeedback') {
             if ($entry.$property -ne $manifest.$property) {
               throw "Custom repository $property does not match the packaged manifest."
             }
