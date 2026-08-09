@@ -147,10 +147,13 @@ jobs:
           finally {
             $archive.Dispose()
           }
-          foreach ($property in 'Author', 'Name', 'InternalName', 'AssemblyVersion', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'IconUrl', 'AcceptsFeedback') {
+          foreach ($property in 'Author', 'Name', 'InternalName', 'Description', 'ApplicableVersion', 'DalamudApiLevel', 'Punchline', 'IconUrl', 'AcceptsFeedback') {
             if ($entry.$property -ne $manifest.$property) {
               throw "Custom repository $property does not match the packaged manifest."
             }
+          }
+          if ([version]$entry.AssemblyVersion -gt [version]$manifest.AssemblyVersion) {
+            throw 'Custom repository AssemblyVersion cannot exceed the packaged manifest.'
           }
           $response = Invoke-WebRequest -Uri $entry.DownloadLinkInstall -Method Head
           if ($response.StatusCode -ne 200) {
