@@ -1,4 +1,4 @@
-name: CursorRing CI
+name: CI
 
 on:
   push:
