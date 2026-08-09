@@ -10,7 +10,10 @@ CursorRing is a Dalamud plugin that replaces the Final Fantasy XIV cursor with a
 - Optional independent circle and dot outlines with configurable thickness and color
 - Inner, outer, stroke-overlay, and pie-overlay GCD presentations
 - Fill or drain progress in either rotation direction
-- Optional GCD background track
+- Optional GCD background track and independent outline
+- Optional cast, slidecast, and post-cast GCD segments with independent colors
+- Predicted, confirmed-only, or hybrid slidecast timing with configurable prediction
+- Optional colored dividers between timing segments
 - Input-transparent rendering
 - Debug/Benchmark-only runtime performance benchmark
 
@@ -20,7 +23,7 @@ Build `CursorRing.sln`, then add the resulting `CursorRing.dll` as a Dalamud dev
 
 The Debug output is located at `CursorRing/bin/x64/Debug/CursorRing.dll`. Open the plugin settings with `/cursorring` or the configuration button in `/xlplugins`.
 
-Debug and Benchmark builds provide `/cursorring benchmark` and a settings button for collecting a 10-second benchmark after a visible three-second countdown. Benchmark builds are optimized and produce representative timing results at `CursorRing/bin/x64/Benchmark/CursorRing.dll`. Results include render-path elapsed time, managed allocations, ImGui geometry, active-GCD samples, and the share of a 144 Hz frame budget. Release builds exclude the collector, command path, interface, telemetry, and result types at compile time.
+Debug and Benchmark builds provide `/cursorring benchmark` and a settings button for collecting a 10-second benchmark after a visible three-second countdown. Benchmark builds are optimized and produce representative timing results at `CursorRing/bin/x64/Benchmark/CursorRing.dll`. Results include render-path elapsed time, managed allocations, ImGui geometry, active-GCD and cast-segment samples, and the share of a 144 Hz frame budget. Release builds exclude the collector, command path, interface, telemetry, and result types at compile time.
 
 ## Development
 
@@ -45,7 +48,7 @@ Production and test C# files intentionally contain no comments. Technical ration
 
 ## In-game verification
 
-Native game interaction requires manual testing. Verify combat transitions, camera mouse-look, hardware and software cursor modes, focus loss, viewport exit, UI hiding, cutscenes, GPose, zoning, logout, and plugin unload. Confirm that the normal cursor returns whenever CursorRing is not visible.
+Native game interaction requires manual testing. Verify combat transitions, camera mouse-look, hardware and software cursor modes, focus loss, viewport exit, UI hiding, cutscenes, GPose, zoning, logout, and plugin unload. Confirm that the normal cursor returns whenever CursorRing is not visible. For cast segmentation, test normal completion, movement interruption, instant-cast procs, casts shorter and longer than the GCD, and consecutive casts in all placement and progress modes.
 
 Dalamud exposes cursor replacement as one shared override. Do not run CursorRing alongside another plugin that forces or replaces the game cursor.
 

@@ -29,80 +29,179 @@ internal sealed class ConfigWindow : Window
 
     public override void Draw()
     {
+        ImGui.TextUnformatted("Preview");
+        ImGui.Separator();
         DrawPreview();
-        ImGui.Separator();
-#if CURSORRING_BENCHMARK
-        DrawBenchmark();
-        ImGui.Separator();
-#endif
+        DrawSection("Visibility", "Choose when CursorRing replaces the game cursor.");
+        var changed = false;
+        if (BeginForm("visibility"))
+        {
+            changed |= DrawEnum("visibility_mode", "Cursor visibility", configuration.Visibility, VisibilityLabel, value => configuration.Visibility = value);
+            changed |= DrawEnum("mouse_look", "Mouse-look visibility", configuration.MouseLook, MouseLookLabel, value => configuration.MouseLook = value);
+            ImGui.EndTable();
+        }
 
-        ImGui.TextUnformatted("Visibility");
-        var changed = DrawEnum("Mode", configuration.Visibility, VisibilityLabel, value => configuration.Visibility = value);
-        changed |= DrawEnum("During mouse-look", configuration.MouseLook, MouseLookLabel, value => configuration.MouseLook = value);
+        DrawSection("Cursor appearance", "Sizes are measured in screen pixels.");
+        if (BeginForm("cursor"))
+        {
+            changed |= DrawFloat("circle_diameter", "Circle diameter", configuration.RingDiameter, 8f, 240f, "%.0f px", value => configuration.RingDiameter = value);
+            changed |= DrawFloat("circle_thickness", "Circle thickness", configuration.RingThickness, 1f, 20f, "%.1f px", value => configuration.RingThickness = value);
+            changed |= DrawColor("circle_color", "Circle color", configuration.RingColor, value => configuration.RingColor = value);
+            changed |= DrawFloat("dot_diameter", "Dot diameter", configuration.DotDiameter, 1f, 64f, "%.1f px", value => configuration.DotDiameter = value);
+            changed |= DrawColor("dot_color", "Dot color", configuration.DotColor, value => configuration.DotColor = value);
+            ImGui.EndTable();
+        }
 
-        ImGui.Spacing();
-        ImGui.TextUnformatted("Cursor");
-        changed |= DrawFloat("Circle diameter", configuration.RingDiameter, 8f, 240f, "%.0f px", value => configuration.RingDiameter = value);
-        changed |= DrawFloat("Circle thickness", configuration.RingThickness, 1f, 20f, "%.1f px", value => configuration.RingThickness = value);
-        changed |= DrawFloat("Dot diameter", configuration.DotDiameter, 1f, 64f, "%.1f px", value => configuration.DotDiameter = value);
-        changed |= DrawColor("Circle color", configuration.RingColor, value => configuration.RingColor = value);
-        changed |= DrawColor("Dot color", configuration.DotColor, value => configuration.DotColor = value);
         var showRingBorder = configuration.ShowRingBorder;
-        if (ImGui.Checkbox("Outline circle", ref showRingBorder))
+        if (ImGui.Checkbox("Circle outline", ref showRingBorder))
         {
             configuration.ShowRingBorder = showRingBorder;
             changed = true;
         }
         if (configuration.ShowRingBorder)
         {
-            changed |= DrawFloat("Circle outline thickness", configuration.RingBorderThickness, 1f, 20f, "%.1f px", value => configuration.RingBorderThickness = value);
-            changed |= DrawColor("Circle outline color", configuration.RingBorderColor, value => configuration.RingBorderColor = value);
+            ImGui.Indent();
+            if (BeginForm("circle_outline"))
+            {
+                changed |= DrawFloat("circle_outline_thickness", "Thickness", configuration.RingBorderThickness, 1f, 20f, "%.1f px", value => configuration.RingBorderThickness = value);
+                changed |= DrawColor("circle_outline_color", "Color", configuration.RingBorderColor, value => configuration.RingBorderColor = value);
+                ImGui.EndTable();
+            }
+            ImGui.Unindent();
         }
 
         var showDotBorder = configuration.ShowDotBorder;
-        if (ImGui.Checkbox("Outline dot", ref showDotBorder))
+        if (ImGui.Checkbox("Dot outline", ref showDotBorder))
         {
             configuration.ShowDotBorder = showDotBorder;
             changed = true;
         }
         if (configuration.ShowDotBorder)
         {
-            changed |= DrawFloat("Dot outline thickness", configuration.DotBorderThickness, 1f, 20f, "%.1f px", value => configuration.DotBorderThickness = value);
-            changed |= DrawColor("Dot outline color", configuration.DotBorderColor, value => configuration.DotBorderColor = value);
+            ImGui.Indent();
+            if (BeginForm("dot_outline"))
+            {
+                changed |= DrawFloat("dot_outline_thickness", "Thickness", configuration.DotBorderThickness, 1f, 20f, "%.1f px", value => configuration.DotBorderThickness = value);
+                changed |= DrawColor("dot_outline_color", "Color", configuration.DotBorderColor, value => configuration.DotBorderColor = value);
+                ImGui.EndTable();
+            }
+            ImGui.Unindent();
         }
 
-        ImGui.Spacing();
-        ImGui.TextUnformatted("Global cooldown");
-        changed |= DrawEnum("Placement", configuration.GcdPlacement, GcdPlacementLabel, value => configuration.GcdPlacement = value);
-        if (configuration.GcdPlacement == GcdPlacement.Overlay)
+        DrawSection("Global cooldown", "Shown only while the global cooldown is active.");
+        if (BeginForm("gcd"))
         {
-            changed |= DrawEnum("Overlay style", configuration.OverlayFill, OverlayFillLabel, value => configuration.OverlayFill = value);
-        }
-        else
-        {
-            changed |= DrawFloat("GCD thickness", configuration.GcdThickness, 1f, 20f, "%.1f px", value => configuration.GcdThickness = value);
-            changed |= DrawFloat("Ring spacing", configuration.GcdSpacing, 0f, 40f, "%.1f px", value => configuration.GcdSpacing = value);
+            changed |= DrawEnum("gcd_placement", "Placement", configuration.GcdPlacement, GcdPlacementLabel, value => configuration.GcdPlacement = value);
+            if (configuration.GcdPlacement == GcdPlacement.Overlay)
+            {
+                changed |= DrawEnum("overlay_style", "Overlay style", configuration.OverlayFill, OverlayFillLabel, value => configuration.OverlayFill = value);
+            }
+            else
+            {
+                changed |= DrawFloat("gcd_thickness", "Ring thickness", configuration.GcdThickness, 1f, 20f, "%.1f px", value => configuration.GcdThickness = value);
+                changed |= DrawFloat("gcd_spacing", "Gap from cursor ring", configuration.GcdSpacing, 0f, 40f, "%.1f px", value => configuration.GcdSpacing = value);
+            }
+
+            changed |= DrawEnum("progress_behavior", "Progress behavior", configuration.ProgressBehavior, ProgressBehaviorLabel, value => configuration.ProgressBehavior = value);
+            changed |= DrawEnum("rotation_direction", "Rotation direction", configuration.Rotation, RotationLabel, value => configuration.Rotation = value);
+            changed |= DrawColor("gcd_color", "GCD / post-cast color", configuration.GcdColor, value => configuration.GcdColor = value);
+            ImGui.EndTable();
         }
 
-        changed |= DrawEnum("Progress", configuration.ProgressBehavior, ProgressBehaviorLabel, value => configuration.ProgressBehavior = value);
-        changed |= DrawEnum("Direction", configuration.Rotation, RotationLabel, value => configuration.Rotation = value);
-        changed |= DrawColor("GCD color", configuration.GcdColor, value => configuration.GcdColor = value);
         var showTrack = configuration.ShowGcdTrack;
-        if (ImGui.Checkbox("Show background track", ref showTrack))
+        if (ImGui.Checkbox("Background track", ref showTrack))
         {
             configuration.ShowGcdTrack = showTrack;
             changed = true;
         }
         if (configuration.ShowGcdTrack)
         {
-            changed |= DrawColor("Track color", configuration.GcdTrackColor, value => configuration.GcdTrackColor = value);
+            ImGui.Indent();
+            DrawHint("Shows the complete GCD path behind the moving progress.");
+            if (BeginForm("gcd_track"))
+            {
+                changed |= DrawColor("track_color", "Color", configuration.GcdTrackColor, value => configuration.GcdTrackColor = value);
+                ImGui.EndTable();
+            }
+            ImGui.Unindent();
+        }
+
+        var showGcdBorder = configuration.ShowGcdBorder;
+        if (ImGui.Checkbox("GCD outline", ref showGcdBorder))
+        {
+            configuration.ShowGcdBorder = showGcdBorder;
+            changed = true;
+        }
+        if (configuration.ShowGcdBorder)
+        {
+            ImGui.Indent();
+            if (BeginForm("gcd_outline"))
+            {
+                changed |= DrawFloat("gcd_outline_thickness", "Thickness", configuration.GcdBorderThickness, 1f, 20f, "%.1f px", value => configuration.GcdBorderThickness = value);
+                changed |= DrawColor("gcd_outline_color", "Color", configuration.GcdBorderColor, value => configuration.GcdBorderColor = value);
+                ImGui.EndTable();
+            }
+            ImGui.Unindent();
+        }
+
+        DrawSection("Cast timing", "Optionally divide casted GCD actions into casting, slidecast, and post-cast segments.");
+        var showCastSegments = configuration.ShowCastSegments;
+        if (ImGui.Checkbox("Cast timing segments", ref showCastSegments))
+        {
+            configuration.ShowCastSegments = showCastSegments;
+            changed = true;
+        }
+        if (configuration.ShowCastSegments)
+        {
+            ImGui.Indent();
+            DrawHint("Cast end uses the live adjusted duration. Instant and off-GCD actions remain unsegmented.");
+            if (BeginForm("cast_timing"))
+            {
+                changed |= DrawEnum("slidecast_timing", "Timing source", configuration.SlidecastTiming, SlidecastTimingLabel, value => configuration.SlidecastTiming = value);
+                if (configuration.SlidecastTiming != SlidecastTimingMode.Confirmed)
+                {
+                    changed |= DrawFloat("predicted_grace", "Predicted grace window", configuration.SlidecastPredictionMilliseconds, 0f, 1000f, "%.0f ms", value => configuration.SlidecastPredictionMilliseconds = value);
+                }
+
+                changed |= DrawColor("casting_color", "Casting color", configuration.CastSegmentColor, value => configuration.CastSegmentColor = value);
+                changed |= DrawColor("slidecast_color", "Slidecast color", configuration.SlidecastSegmentColor, value => configuration.SlidecastSegmentColor = value);
+                ImGui.EndTable();
+            }
+
+            DrawHint(SlidecastTimingDescription(configuration.SlidecastTiming));
+            var showDividers = configuration.ShowSegmentDividers;
+            if (ImGui.Checkbox("Segment dividers", ref showDividers))
+            {
+                configuration.ShowSegmentDividers = showDividers;
+                changed = true;
+            }
+            if (configuration.ShowSegmentDividers)
+            {
+                ImGui.Indent();
+                if (BeginForm("segment_dividers"))
+                {
+                    changed |= DrawFloat("divider_thickness", "Thickness", configuration.SegmentDividerThickness, 1f, 10f, "%.1f px", value => configuration.SegmentDividerThickness = value);
+                    changed |= DrawColor("divider_color", "Color", configuration.SegmentDividerColor, value => configuration.SegmentDividerColor = value);
+                    ImGui.EndTable();
+                }
+                ImGui.Unindent();
+            }
+            ImGui.Unindent();
         }
 
         ImGui.Spacing();
-        if (ImGui.Button("Reset to defaults"))
+        ImGui.Separator();
+        if (ImGui.Button("Reset all settings"))
         {
             changed |= configuration.Reset();
         }
+        ImGui.SameLine();
+        ImGui.TextDisabled("Changes save automatically");
+
+#if CURSORRING_BENCHMARK
+        DrawSection("Performance benchmark", "Available only in Debug and Benchmark builds.");
+        DrawBenchmark();
+#endif
 
         if (changed)
         {
@@ -115,8 +214,7 @@ internal sealed class ConfigWindow : Window
 
     private void DrawBenchmark()
     {
-        ImGui.TextUnformatted("Performance benchmark");
-        ImGui.TextWrapped("Measures the cursor render path for 10 seconds. Keep the ring visible for representative results.");
+        DrawHint("Measures the cursor render path for 10 seconds. Keep the ring visible for representative results.");
 
         if (benchmark.Phase == BenchmarkPhase.Countdown)
         {
@@ -132,6 +230,10 @@ internal sealed class ConfigWindow : Window
             ImGui.ProgressBar((float)benchmark.Progress, new Vector2(-1f, 0f), $"Running: {benchmark.SampleCount} frames");
             ImGui.TextUnformatted("Benchmark running. Continue using GCD actions.");
             ImGui.TextUnformatted(benchmark.GcdDetected ? "GCD detected: yes" : "GCD detected: not yet");
+            if (configuration.ShowCastSegments)
+            {
+                ImGui.TextUnformatted(benchmark.CastSegmentsDetected ? "Cast segments detected: yes" : "Cast segments detected: not yet");
+            }
             if (ImGui.Button("Cancel benchmark"))
             {
                 benchmark.Cancel();
@@ -143,7 +245,7 @@ internal sealed class ConfigWindow : Window
         }
 
         var observation = GlobalCooldownReader.LastObservation;
-        ImGui.TextUnformatted($"GCD reader: {GcdReadStatusLabel(observation.Status)}, native active {YesNo(observation.NativeActive)}, elapsed {observation.Elapsed:F3}, total {observation.Total:F3}");
+        ImGui.TextWrapped($"GCD reader: {GcdReadStatusLabel(observation.Status)}, native active {YesNo(observation.NativeActive)}, elapsed {observation.Elapsed:F3}, total {observation.Total:F3}");
 
         if (benchmark.LastResult is not { } result)
         {
@@ -177,26 +279,66 @@ internal sealed class ConfigWindow : Window
 
     private void DrawPreview()
     {
-        const float previewHeight = 130f;
+        const float previewHeight = 112f;
         var start = ImGui.GetCursorScreenPos();
         var width = ImGui.GetContentRegionAvail().X;
         var center = start + new Vector2(width / 2f, previewHeight / 2f);
         var geometry = RingMath.GetGeometry(configuration);
         var ringBorder = configuration.ShowRingBorder ? configuration.RingBorderThickness : 0f;
         var dotBorder = configuration.ShowDotBorder ? configuration.DotBorderThickness : 0f;
+        var gcdBorder = configuration.ShowGcdBorder ? configuration.GcdBorderThickness : 0f;
         var ringExtent = geometry.Main + (configuration.RingThickness / 2f) + ringBorder;
         var dotExtent = (configuration.DotDiameter / 2f) + dotBorder;
-        var gcdExtent = geometry.Outer + (configuration.GcdThickness / 2f);
+        var gcdExtent = configuration.GcdPlacement switch
+        {
+            GcdPlacement.Outer => geometry.Outer + (configuration.GcdThickness / 2f) + gcdBorder,
+            GcdPlacement.Inner => geometry.Inner + (geometry.InnerThickness / 2f) + geometry.InnerBorderThickness,
+            GcdPlacement.Overlay when configuration.OverlayFill == OverlayFillStyle.Pie => geometry.Pie,
+            _ => geometry.Main + (configuration.RingThickness / 2f) + gcdBorder
+        };
         var extent = MathF.Max(MathF.Max(ringExtent, dotExtent), gcdExtent);
         var scale = MathF.Min(1f, MathF.Min((previewHeight - 10f) / (extent * 2f), (width - 10f) / (extent * 2f)));
-        CursorRenderer.DrawAt(configuration, ImGui.GetWindowDrawList(), center, new GcdState(true, 0.35f), scale);
+        var previewProgress = configuration.ProgressBehavior == ProgressBehavior.Fill ? 0.9f : 0.35f;
+        var gcd = new GcdState(true, previewProgress * 2.5f, 2.5f);
+        var segments = configuration.ShowCastSegments ? new GcdSegments(true, 0.55f, 0.78f, true) : GcdSegments.Inactive;
+        CursorRenderer.DrawAt(configuration, ImGui.GetWindowDrawList(), center, gcd, segments, scale);
         ImGui.Dummy(new Vector2(width, previewHeight));
     }
 
-    private static bool DrawFloat(string label, float value, float minimum, float maximum, string format, Action<float> setter)
+    private static void DrawSection(string label, string description)
     {
+        ImGui.Spacing();
+        ImGui.TextUnformatted(label);
+        ImGui.Separator();
+        DrawHint(description);
+    }
+
+    private static void DrawHint(string text)
+    {
+        var disabledColor = ImGui.GetStyle().Colors[(int)ImGuiCol.TextDisabled];
+        ImGui.PushStyleColor(ImGuiCol.Text, disabledColor);
+        ImGui.TextWrapped(text);
+        ImGui.PopStyleColor();
+    }
+
+    private static bool BeginForm(string id)
+    {
+        var flags = ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.PadOuterX | ImGuiTableFlags.NoSavedSettings;
+        if (!ImGui.BeginTable($"##{id}", 2, flags))
+        {
+            return false;
+        }
+
+        ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 168f);
+        ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+        return true;
+    }
+
+    private static bool DrawFloat(string id, string label, float value, float minimum, float maximum, string format, Action<float> setter)
+    {
+        BeginRow(label);
         ImGui.SetNextItemWidth(-1f);
-        if (!ImGui.SliderFloat(label, ref value, minimum, maximum, format))
+        if (!ImGui.SliderFloat($"##{id}", ref value, minimum, maximum, format))
         {
             return false;
         }
@@ -205,9 +347,11 @@ internal sealed class ConfigWindow : Window
         return true;
     }
 
-    private static bool DrawColor(string label, Vector4 color, Action<Vector4> setter)
+    private static bool DrawColor(string id, string label, Vector4 color, Action<Vector4> setter)
     {
-        if (!ImGui.ColorEdit4(label, ref color, ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf))
+        BeginRow(label);
+        ImGui.SetNextItemWidth(-1f);
+        if (!ImGui.ColorEdit4($"##{id}", ref color, ImGuiColorEditFlags.AlphaBar | ImGuiColorEditFlags.AlphaPreviewHalf))
         {
             return false;
         }
@@ -216,11 +360,12 @@ internal sealed class ConfigWindow : Window
         return true;
     }
 
-    private static bool DrawEnum<T>(string label, T value, Func<T, string> formatter, Action<T> setter) where T : struct, Enum
+    private static bool DrawEnum<T>(string id, string label, T value, Func<T, string> formatter, Action<T> setter) where T : struct, Enum
     {
         var changed = false;
+        BeginRow(label);
         ImGui.SetNextItemWidth(-1f);
-        if (!ImGui.BeginCombo(label, formatter(value)))
+        if (!ImGui.BeginCombo($"##{id}", formatter(value)))
         {
             return false;
         }
@@ -245,6 +390,15 @@ internal sealed class ConfigWindow : Window
         return changed;
     }
 
+    private static void BeginRow(string label)
+    {
+        ImGui.TableNextRow();
+        ImGui.TableSetColumnIndex(0);
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(label);
+        ImGui.TableSetColumnIndex(1);
+    }
+
     private static string VisibilityLabel(VisibilityMode value)
     {
         return value == VisibilityMode.Always ? "Always" : "Combat only";
@@ -254,7 +408,7 @@ internal sealed class ConfigWindow : Window
     {
         return value switch
         {
-            MouseLookVisibility.FollowVisibility => "Follow visibility mode",
+            MouseLookVisibility.FollowVisibility => "Same as cursor visibility",
             MouseLookVisibility.CombatOnly => "Combat only",
             _ => "Hidden"
         };
@@ -272,16 +426,36 @@ internal sealed class ConfigWindow : Window
 
     private static string OverlayFillLabel(OverlayFillStyle value)
     {
-        return value == OverlayFillStyle.Stroke ? "Circle stroke" : "Interior pie";
+        return value == OverlayFillStyle.Stroke ? "Ring stroke" : "Filled pie";
     }
 
     private static string ProgressBehaviorLabel(ProgressBehavior value)
     {
-        return value == ProgressBehavior.Fill ? "Fill from empty" : "Drain from full";
+        return value == ProgressBehavior.Fill ? "Fill over time" : "Drain over time";
     }
 
     private static string RotationLabel(RotationDirection value)
     {
         return value == RotationDirection.Clockwise ? "Clockwise" : "Counterclockwise";
+    }
+
+    private static string SlidecastTimingLabel(SlidecastTimingMode value)
+    {
+        return value switch
+        {
+            SlidecastTimingMode.Predicted => "Prediction only",
+            SlidecastTimingMode.Confirmed => "Game confirmation only",
+            _ => "Prediction, then confirmation"
+        };
+    }
+
+    private static string SlidecastTimingDescription(SlidecastTimingMode value)
+    {
+        return value switch
+        {
+            SlidecastTimingMode.Predicted => "Uses a stable configurable estimate. The marker does not move, but it is not a guaranteed safe threshold.",
+            SlidecastTimingMode.Confirmed => "Shows the slidecast segment only after the game confirms that the cast can no longer be cancelled.",
+            _ => "Starts with the configurable estimate, then moves once to the game-confirmed threshold when it is observed."
+        };
     }
 }

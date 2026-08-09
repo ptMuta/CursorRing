@@ -2,9 +2,13 @@ using System;
 
 namespace CursorRing;
 
-internal readonly record struct GcdState(bool IsActive, float Progress)
+internal readonly record struct GcdState(bool IsActive, float Elapsed, float Total)
 {
-    internal static readonly GcdState Inactive = new(false, 0f);
+    internal static readonly GcdState Inactive = new(false, 0f, 0f);
+
+    internal float Progress => IsActive && float.IsFinite(Elapsed) && float.IsFinite(Total) && Total > 0f
+        ? Math.Clamp(Elapsed / Total, 0f, 1f)
+        : 0f;
 
     internal static GcdState Create(bool nativeActive, float elapsed, float total)
     {
@@ -18,6 +22,6 @@ internal readonly record struct GcdState(bool IsActive, float Progress)
             return Inactive;
         }
 
-        return new GcdState(true, Math.Clamp(elapsed / total, 0f, 1f));
+        return new GcdState(true, elapsed, total);
     }
 }

@@ -66,7 +66,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= configWindow.Toggle;
         ClientState.Logout -= OnLogout;
         CommandManager.RemoveHandler(CommandName);
-        renderer.Hide();
+        renderer.ResetState();
         windowSystem.RemoveAllWindows();
     }
 
@@ -121,6 +121,6 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnLogout(int type, int code)
     {
-        renderer.Hide();
+        renderer.ResetState();
     }
 }

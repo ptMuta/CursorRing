@@ -17,6 +17,11 @@ public sealed class CursorSettingsTests
         Assert.True(settings.ShowGcdTrack);
         Assert.False(settings.ShowRingBorder);
         Assert.False(settings.ShowDotBorder);
+        Assert.False(settings.ShowGcdBorder);
+        Assert.False(settings.ShowCastSegments);
+        Assert.Equal(SlidecastTimingMode.Hybrid, settings.SlidecastTiming);
+        Assert.Equal(500f, settings.SlidecastPredictionMilliseconds);
+        Assert.False(settings.ShowSegmentDividers);
     }
 
     [Fact]
@@ -42,7 +47,15 @@ public sealed class CursorSettingsTests
             GcdThickness = 100f,
             GcdSpacing = -1f,
             GcdColor = new Vector4(-1f, 2f, float.NaN, 0.5f),
-            GcdTrackColor = new Vector4(2f, -1f, 0.5f, float.NaN)
+            GcdTrackColor = new Vector4(2f, -1f, 0.5f, float.NaN),
+            GcdBorderThickness = float.NaN,
+            GcdBorderColor = new Vector4(-1f, 2f, float.NaN, 0.5f),
+            SlidecastTiming = (SlidecastTimingMode)999,
+            SlidecastPredictionMilliseconds = float.PositiveInfinity,
+            CastSegmentColor = new Vector4(2f, -1f, float.NaN, 0.5f),
+            SlidecastSegmentColor = new Vector4(-1f, 2f, 0.5f, float.NaN),
+            SegmentDividerThickness = 100f,
+            SegmentDividerColor = new Vector4(2f, -1f, float.NaN, 0.5f)
         };
 
         Assert.True(settings.Normalize());
@@ -65,6 +78,14 @@ public sealed class CursorSettingsTests
         Assert.Equal(0f, settings.GcdSpacing);
         Assert.Equal(new Vector4(0f, 1f, 0.1f, 0.5f), settings.GcdColor);
         Assert.Equal(new Vector4(1f, 0f, 0.5f, 0.35f), settings.GcdTrackColor);
+        Assert.Equal(1f, settings.GcdBorderThickness);
+        Assert.Equal(new Vector4(0f, 1f, 0f, 0.5f), settings.GcdBorderColor);
+        Assert.Equal(SlidecastTimingMode.Hybrid, settings.SlidecastTiming);
+        Assert.Equal(500f, settings.SlidecastPredictionMilliseconds);
+        Assert.Equal(new Vector4(1f, 0f, 1f, 0.5f), settings.CastSegmentColor);
+        Assert.Equal(new Vector4(0f, 1f, 0.5f, 1f), settings.SlidecastSegmentColor);
+        Assert.Equal(10f, settings.SegmentDividerThickness);
+        Assert.Equal(new Vector4(1f, 0f, 0f, 0.5f), settings.SegmentDividerColor);
     }
 
     [Fact]
@@ -102,7 +123,18 @@ public sealed class CursorSettingsTests
             GcdSpacing = 20f,
             GcdColor = Vector4.Zero,
             ShowGcdTrack = false,
-            GcdTrackColor = Vector4.One
+            GcdTrackColor = Vector4.One,
+            ShowGcdBorder = true,
+            GcdBorderThickness = 10f,
+            GcdBorderColor = Vector4.One,
+            ShowCastSegments = true,
+            SlidecastTiming = SlidecastTimingMode.Confirmed,
+            SlidecastPredictionMilliseconds = 100f,
+            CastSegmentColor = Vector4.Zero,
+            SlidecastSegmentColor = Vector4.Zero,
+            ShowSegmentDividers = true,
+            SegmentDividerThickness = 8f,
+            SegmentDividerColor = Vector4.One
         };
 
         Assert.True(settings.Reset());

@@ -21,8 +21,10 @@ internal sealed class CursorRenderer
     private readonly IUiBuilder uiBuilder;
     private readonly IPluginLog log;
     private readonly CursorPositionTracker positionTracker = new();
+    private readonly CastSegmentationTracker castSegmentationTracker = new();
     private bool cursorHidden;
     private bool drawFailureLogged;
+    private bool castSegmentationEnabled;
 
     internal CursorRenderer(
         CursorSettings settings,
@@ -83,11 +85,24 @@ internal sealed class CursorRenderer
             var indicesBefore = measureGeometry ? drawList.IdxBuffer.Size : 0;
 #endif
             var gcd = GlobalCooldownReader.Read();
-            DrawAt(settings, drawList, position, gcd);
+            var segments = GcdSegments.Inactive;
+            if (settings.ShowCastSegments)
+            {
+                castSegmentationEnabled = true;
+                var cast = gcd.IsActive ? LocalCastReader.Read(castSegmentationTracker.NeedsCast(gcd)) : CastSample.Inactive;
+                segments = castSegmentationTracker.Update(gcd, cast, settings.SlidecastTiming, settings.SlidecastPredictionMilliseconds);
+            }
+            else if (castSegmentationEnabled)
+            {
+                castSegmentationEnabled = false;
+                castSegmentationTracker.Reset();
+            }
+
+            DrawAt(settings, drawList, position, gcd, segments);
 #if CURSORRING_BENCHMARK
             if (measureGeometry)
             {
-                work = new RenderWork(RenderStatus.Rendered, drawList.VtxBuffer.Size - verticesBefore, drawList.IdxBuffer.Size - indicesBefore, gcd.IsActive);
+                work = new RenderWork(RenderStatus.Rendered, drawList.VtxBuffer.Size - verticesBefore, drawList.IdxBuffer.Size - indicesBefore, gcd.IsActive, segments.IsActive);
             }
 #endif
             drawFailureLogged = false;
@@ -114,10 +129,28 @@ internal sealed class CursorRenderer
 
     internal void Hide()
     {
+        if (cursorHidden && castSegmentationEnabled)
+        {
+            castSegmentationTracker.Reset();
+        }
+
         SetCursorHidden(false);
     }
 
-    internal static void DrawAt(CursorSettings settings, ImDrawListPtr drawList, Vector2 center, GcdState gcd, float scale = 1f)
+    internal void ResetState()
+    {
+        castSegmentationEnabled = false;
+        castSegmentationTracker.Reset();
+        Hide();
+    }
+
+    internal static void DrawAt(
+        CursorSettings settings,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        GcdState gcd,
+        GcdSegments segments,
+        float scale = 1f)
     {
         var geometry = RingMath.GetGeometry(settings);
         var mainRadius = geometry.Main * scale;
@@ -134,12 +167,7 @@ internal sealed class CursorRenderer
 
         if (gcd.IsActive && settings.GcdPlacement == GcdPlacement.Overlay && settings.OverlayFill == OverlayFillStyle.Pie)
         {
-            if (settings.ShowGcdTrack)
-            {
-                drawList.AddCircleFilled(center, pieRadius, trackColor);
-            }
-
-            DrawPie(drawList, center, pieRadius, RingMath.GetArc(gcd.Progress, settings.ProgressBehavior, settings.Rotation), gcdColor);
+            DrawGcdPie(settings, drawList, center, pieRadius, gcd, segments, scale, gcdColor, trackColor);
         }
 
         if (settings.ShowRingBorder)
@@ -164,13 +192,14 @@ internal sealed class CursorRenderer
                 GcdPlacement.Outer => gcdThickness,
                 _ => ringThickness
             };
-
-            if (settings.ShowGcdTrack)
+            var borderThickness = settings.GcdPlacement switch
             {
-                drawList.AddCircle(center, radius, trackColor, 0, thickness);
-            }
+                GcdPlacement.Inner => geometry.InnerBorderThickness * scale,
+                GcdPlacement.Overlay => RingMath.ClampStrokeBorder(mainRadius, ringThickness, settings.GcdBorderThickness * scale),
+                _ => settings.GcdBorderThickness * scale
+            };
 
-            DrawArc(drawList, center, radius, thickness, RingMath.GetArc(gcd.Progress, settings.ProgressBehavior, settings.Rotation), gcdColor);
+            DrawGcdStroke(settings, drawList, center, radius, thickness, borderThickness, gcd, segments, scale, gcdColor, trackColor);
         }
 
         var dotRadius = settings.DotDiameter * scale / 2f;
@@ -250,6 +279,234 @@ internal sealed class CursorRenderer
         }
 
         cursorHidden = hidden;
+    }
+
+    private static void DrawGcdStroke(
+        CursorSettings settings,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        float thickness,
+        float borderThickness,
+        GcdState gcd,
+        GcdSegments segments,
+        float scale,
+        uint gcdColor,
+        uint trackColor)
+    {
+        var visible = RingMath.GetVisibleRange(gcd.Progress, settings.ProgressBehavior);
+        if (settings.ShowGcdBorder && borderThickness > 0f)
+        {
+            var borderColor = ImGui.ColorConvertFloat4ToU32(settings.GcdBorderColor);
+            if (settings.ShowGcdTrack)
+            {
+                drawList.AddCircle(center, radius, borderColor, 0, thickness + (borderThickness * 2f));
+            }
+            else
+            {
+                DrawArcRange(drawList, center, radius, thickness + (borderThickness * 2f), visible, settings.Rotation, borderColor);
+            }
+        }
+
+        if (settings.ShowGcdTrack)
+        {
+            drawList.AddCircle(center, radius, trackColor, 0, thickness);
+        }
+
+        DrawGcdArcContent(settings, drawList, center, radius, thickness, visible, segments, gcdColor);
+        DrawSegmentDividers(settings, drawList, center, radius, thickness, visible, segments, scale, false);
+    }
+
+    private static void DrawGcdPie(
+        CursorSettings settings,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        GcdState gcd,
+        GcdSegments segments,
+        float scale,
+        uint gcdColor,
+        uint trackColor)
+    {
+        var visible = RingMath.GetVisibleRange(gcd.Progress, settings.ProgressBehavior);
+        var borderThickness = settings.ShowGcdBorder
+            ? RingMath.ClampPieBorder(radius, settings.GcdBorderThickness * scale)
+            : 0f;
+        var contentRadius = MathF.Max(0.5f, radius - borderThickness);
+        if (settings.ShowGcdBorder)
+        {
+            var borderColor = ImGui.ColorConvertFloat4ToU32(settings.GcdBorderColor);
+            if (settings.ShowGcdTrack)
+            {
+                drawList.AddCircleFilled(center, radius, borderColor);
+            }
+            else
+            {
+                DrawPieRange(drawList, center, radius, visible, settings.Rotation, borderColor);
+            }
+        }
+
+        if (settings.ShowGcdTrack)
+        {
+            drawList.AddCircleFilled(center, contentRadius, trackColor);
+        }
+
+        DrawGcdPieContent(settings, drawList, center, contentRadius, visible, segments, gcdColor);
+        if (settings.ShowGcdBorder && !settings.ShowGcdTrack && visible.IsVisible)
+        {
+            var borderColor = ImGui.ColorConvertFloat4ToU32(settings.GcdBorderColor);
+            DrawPieEdges(drawList, center, radius, visible, settings.Rotation, borderThickness, borderColor);
+        }
+
+        DrawSegmentDividers(settings, drawList, center, contentRadius, contentRadius, visible, segments, scale, true);
+    }
+
+    private static void DrawGcdArcContent(
+        CursorSettings settings,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        float thickness,
+        ProgressRange visible,
+        GcdSegments segments,
+        uint gcdColor)
+    {
+        if (!segments.IsActive)
+        {
+            DrawArcRange(drawList, center, radius, thickness, visible, settings.Rotation, gcdColor);
+            return;
+        }
+
+        var castColor = ImGui.ColorConvertFloat4ToU32(settings.CastSegmentColor);
+        var slidecastColor = ImGui.ColorConvertFloat4ToU32(settings.SlidecastSegmentColor);
+        DrawArcRange(drawList, center, radius, thickness, RingMath.Intersect(visible, new ProgressRange(0f, segments.SlideStart)), settings.Rotation, castColor);
+        DrawArcRange(drawList, center, radius, thickness, RingMath.Intersect(visible, new ProgressRange(segments.SlideStart, segments.CastEnd)), settings.Rotation, slidecastColor);
+        DrawArcRange(drawList, center, radius, thickness, RingMath.Intersect(visible, new ProgressRange(segments.CastEnd, 1f)), settings.Rotation, gcdColor);
+    }
+
+    private static void DrawGcdPieContent(
+        CursorSettings settings,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        ProgressRange visible,
+        GcdSegments segments,
+        uint gcdColor)
+    {
+        if (!segments.IsActive)
+        {
+            DrawPieRange(drawList, center, radius, visible, settings.Rotation, gcdColor);
+            return;
+        }
+
+        var castColor = ImGui.ColorConvertFloat4ToU32(settings.CastSegmentColor);
+        var slidecastColor = ImGui.ColorConvertFloat4ToU32(settings.SlidecastSegmentColor);
+        DrawPieRange(drawList, center, radius, RingMath.Intersect(visible, new ProgressRange(0f, segments.SlideStart)), settings.Rotation, castColor);
+        DrawPieRange(drawList, center, radius, RingMath.Intersect(visible, new ProgressRange(segments.SlideStart, segments.CastEnd)), settings.Rotation, slidecastColor);
+        DrawPieRange(drawList, center, radius, RingMath.Intersect(visible, new ProgressRange(segments.CastEnd, 1f)), settings.Rotation, gcdColor);
+    }
+
+    private static void DrawSegmentDividers(
+        CursorSettings settings,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        float visualWidth,
+        ProgressRange visible,
+        GcdSegments segments,
+        float scale,
+        bool pie)
+    {
+        if (!segments.IsActive || !settings.ShowSegmentDividers)
+        {
+            return;
+        }
+
+        var color = ImGui.ColorConvertFloat4ToU32(settings.SegmentDividerColor);
+        var thickness = settings.SegmentDividerThickness * scale;
+        DrawSegmentDivider(settings, drawList, center, radius, visualWidth, visible, segments.SlideStart, pie, color, thickness);
+        if (MathF.Abs(segments.CastEnd - segments.SlideStart) > 0.0001f)
+        {
+            DrawSegmentDivider(settings, drawList, center, radius, visualWidth, visible, segments.CastEnd, pie, color, thickness);
+        }
+    }
+
+    private static void DrawSegmentDivider(
+        CursorSettings settings,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        float visualWidth,
+        ProgressRange visible,
+        float progress,
+        bool pie,
+        uint color,
+        float thickness)
+    {
+        if (progress <= 0.0001f
+            || progress >= 0.9999f
+            || !settings.ShowGcdTrack && (progress < visible.Start || progress > visible.End))
+        {
+            return;
+        }
+
+        var direction = settings.Rotation == RotationDirection.Clockwise ? 1f : -1f;
+        var angle = RingMath.Top + (direction * RingMath.FullTurn * progress);
+        var startRadius = pie ? 0f : MathF.Max(0f, radius - (visualWidth / 2f));
+        var endRadius = pie ? radius : radius + (visualWidth / 2f);
+        drawList.AddLine(PointOnCircle(center, startRadius, angle), PointOnCircle(center, endRadius, angle), color, thickness);
+    }
+
+    private static void DrawArcRange(
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        float thickness,
+        ProgressRange range,
+        RotationDirection direction,
+        uint color)
+    {
+        if (range.IsVisible)
+        {
+            DrawArc(drawList, center, radius, thickness, RingMath.GetArc(range.Start, range.End, direction), color);
+        }
+    }
+
+    private static void DrawPieRange(
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        ProgressRange range,
+        RotationDirection direction,
+        uint color)
+    {
+        if (range.IsVisible)
+        {
+            DrawPie(drawList, center, radius, RingMath.GetArc(range.Start, range.End, direction), color);
+        }
+    }
+
+    private static void DrawPieEdges(
+        ImDrawListPtr drawList,
+        Vector2 center,
+        float radius,
+        ProgressRange range,
+        RotationDirection direction,
+        float thickness,
+        uint color)
+    {
+        if (range.End - range.Start >= 0.9999f)
+        {
+            drawList.AddCircle(center, MathF.Max(0.5f, radius - (thickness / 2f)), color, 0, thickness);
+            return;
+        }
+
+        var sign = direction == RotationDirection.Clockwise ? 1f : -1f;
+        var startAngle = RingMath.Top + (sign * RingMath.FullTurn * range.Start);
+        var endAngle = RingMath.Top + (sign * RingMath.FullTurn * range.End);
+        drawList.AddLine(center, PointOnCircle(center, radius, startAngle), color, thickness);
+        drawList.AddLine(center, PointOnCircle(center, radius, endAngle), color, thickness);
+        DrawArc(drawList, center, MathF.Max(0.5f, radius - (thickness / 2f)), thickness, new ArcAngles(startAngle, endAngle), color);
     }
 
     private static void DrawArc(ImDrawListPtr drawList, Vector2 center, float radius, float thickness, ArcAngles angles, uint color)

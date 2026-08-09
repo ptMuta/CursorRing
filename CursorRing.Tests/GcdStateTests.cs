@@ -40,4 +40,10 @@ public sealed class GcdStateTests
     {
         Assert.Equal(GcdState.Inactive, GcdState.Create(false, 0f, 2.5f));
     }
+
+    [Fact]
+    public void DirectInvalidStateHasSafeProgress()
+    {
+        Assert.Equal(0f, new GcdState(true, 1f, 0f).Progress);
+    }
 }

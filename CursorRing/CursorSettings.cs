@@ -42,6 +42,13 @@ public enum RotationDirection
     Counterclockwise
 }
 
+public enum SlidecastTimingMode
+{
+    Predicted,
+    Confirmed,
+    Hybrid
+}
+
 public class CursorSettings
 {
     private static readonly Vector4 DefaultRingColor = Vector4.One;
@@ -49,6 +56,8 @@ public class CursorSettings
     private static readonly Vector4 DefaultBorderColor = new(0f, 0f, 0f, 1f);
     private static readonly Vector4 DefaultGcdColor = new(1f, 0.75f, 0.1f, 1f);
     private static readonly Vector4 DefaultTrackColor = new(0f, 0f, 0f, 0.35f);
+    private static readonly Vector4 DefaultCastColor = new(0.25f, 0.65f, 1f, 1f);
+    private static readonly Vector4 DefaultSlidecastColor = new(0.25f, 1f, 0.45f, 1f);
 
     public int Version { get; set; } = 1;
     public VisibilityMode Visibility { get; set; } = VisibilityMode.CombatOnly;
@@ -73,6 +82,17 @@ public class CursorSettings
     public Vector4 GcdColor { get; set; } = DefaultGcdColor;
     public bool ShowGcdTrack { get; set; } = true;
     public Vector4 GcdTrackColor { get; set; } = DefaultTrackColor;
+    public bool ShowGcdBorder { get; set; }
+    public float GcdBorderThickness { get; set; } = 1f;
+    public Vector4 GcdBorderColor { get; set; } = DefaultBorderColor;
+    public bool ShowCastSegments { get; set; }
+    public SlidecastTimingMode SlidecastTiming { get; set; } = SlidecastTimingMode.Hybrid;
+    public float SlidecastPredictionMilliseconds { get; set; } = 500f;
+    public Vector4 CastSegmentColor { get; set; } = DefaultCastColor;
+    public Vector4 SlidecastSegmentColor { get; set; } = DefaultSlidecastColor;
+    public bool ShowSegmentDividers { get; set; }
+    public float SegmentDividerThickness { get; set; } = 1f;
+    public Vector4 SegmentDividerColor { get; set; } = DefaultBorderColor;
 
     public bool Normalize()
     {
@@ -97,6 +117,14 @@ public class CursorSettings
         changed |= Update(GcdSpacing, NormalizeNumber(GcdSpacing, 3f, 0f, 40f), value => GcdSpacing = value);
         changed |= Update(GcdColor, NormalizeColor(GcdColor, DefaultGcdColor), value => GcdColor = value);
         changed |= Update(GcdTrackColor, NormalizeColor(GcdTrackColor, DefaultTrackColor), value => GcdTrackColor = value);
+        changed |= Update(GcdBorderThickness, NormalizeNumber(GcdBorderThickness, 1f, 1f, 20f), value => GcdBorderThickness = value);
+        changed |= Update(GcdBorderColor, NormalizeColor(GcdBorderColor, DefaultBorderColor), value => GcdBorderColor = value);
+        changed |= Update(SlidecastTiming, NormalizeEnum(SlidecastTiming, SlidecastTimingMode.Hybrid), value => SlidecastTiming = value);
+        changed |= Update(SlidecastPredictionMilliseconds, NormalizeNumber(SlidecastPredictionMilliseconds, 500f, 0f, 1000f), value => SlidecastPredictionMilliseconds = value);
+        changed |= Update(CastSegmentColor, NormalizeColor(CastSegmentColor, DefaultCastColor), value => CastSegmentColor = value);
+        changed |= Update(SlidecastSegmentColor, NormalizeColor(SlidecastSegmentColor, DefaultSlidecastColor), value => SlidecastSegmentColor = value);
+        changed |= Update(SegmentDividerThickness, NormalizeNumber(SegmentDividerThickness, 1f, 1f, 10f), value => SegmentDividerThickness = value);
+        changed |= Update(SegmentDividerColor, NormalizeColor(SegmentDividerColor, DefaultBorderColor), value => SegmentDividerColor = value);
         return changed;
     }
 
@@ -126,6 +154,17 @@ public class CursorSettings
         changed |= Update(GcdColor, DefaultGcdColor, value => GcdColor = value);
         changed |= Update(ShowGcdTrack, true, value => ShowGcdTrack = value);
         changed |= Update(GcdTrackColor, DefaultTrackColor, value => GcdTrackColor = value);
+        changed |= Update(ShowGcdBorder, false, value => ShowGcdBorder = value);
+        changed |= Update(GcdBorderThickness, 1f, value => GcdBorderThickness = value);
+        changed |= Update(GcdBorderColor, DefaultBorderColor, value => GcdBorderColor = value);
+        changed |= Update(ShowCastSegments, false, value => ShowCastSegments = value);
+        changed |= Update(SlidecastTiming, SlidecastTimingMode.Hybrid, value => SlidecastTiming = value);
+        changed |= Update(SlidecastPredictionMilliseconds, 500f, value => SlidecastPredictionMilliseconds = value);
+        changed |= Update(CastSegmentColor, DefaultCastColor, value => CastSegmentColor = value);
+        changed |= Update(SlidecastSegmentColor, DefaultSlidecastColor, value => SlidecastSegmentColor = value);
+        changed |= Update(ShowSegmentDividers, false, value => ShowSegmentDividers = value);
+        changed |= Update(SegmentDividerThickness, 1f, value => SegmentDividerThickness = value);
+        changed |= Update(SegmentDividerColor, DefaultBorderColor, value => SegmentDividerColor = value);
         return changed;
     }
 
