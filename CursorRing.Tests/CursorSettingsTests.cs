@@ -29,7 +29,6 @@ public sealed class CursorSettingsTests
         Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.DotBorderColor);
         Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.GcdBorderColor);
         Assert.False(settings.ShowCastSegments);
-        Assert.Equal(SlidecastTimingMode.Hybrid, settings.SlidecastTiming);
         Assert.Equal(500f, settings.SlidecastPredictionMilliseconds);
         Assert.False(settings.ShowSegmentDividers);
     }
@@ -60,7 +59,6 @@ public sealed class CursorSettingsTests
             GcdTrackColor = new Vector4(2f, -1f, 0.5f, float.NaN),
             GcdBorderThickness = float.NaN,
             GcdBorderColor = new Vector4(-1f, 2f, float.NaN, 0.5f),
-            SlidecastTiming = (SlidecastTimingMode)999,
             SlidecastPredictionMilliseconds = float.PositiveInfinity,
             CastSegmentColor = new Vector4(2f, -1f, float.NaN, 0.5f),
             SlidecastSegmentColor = new Vector4(-1f, 2f, 0.5f, float.NaN),
@@ -90,7 +88,6 @@ public sealed class CursorSettingsTests
         Assert.Equal(new Vector4(1f, 0f, 0.5f, 0.35f), settings.GcdTrackColor);
         Assert.Equal(1f, settings.GcdBorderThickness);
         Assert.Equal(new Vector4(0f, 1f, 0f, 0.5f), settings.GcdBorderColor);
-        Assert.Equal(SlidecastTimingMode.Hybrid, settings.SlidecastTiming);
         Assert.Equal(500f, settings.SlidecastPredictionMilliseconds);
         Assert.Equal(new Vector4(1f, 0f, 1f, 0.5f), settings.CastSegmentColor);
         Assert.Equal(new Vector4(0f, 1f, 0.5f, 1f), settings.SlidecastSegmentColor);
@@ -139,7 +136,6 @@ public sealed class CursorSettingsTests
             GcdBorderThickness = 10f,
             GcdBorderColor = Vector4.One,
             ShowCastSegments = true,
-            SlidecastTiming = SlidecastTimingMode.Confirmed,
             SlidecastPredictionMilliseconds = 100f,
             CastSegmentColor = Vector4.Zero,
             SlidecastSegmentColor = Vector4.Zero,

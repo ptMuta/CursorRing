@@ -14,9 +14,16 @@ internal readonly record struct CastSample(
     internal static CastSample Inactive => default;
 }
 
-internal readonly record struct GcdSegments(bool IsActive, float SlideStart, float CastEnd, bool IsConfirmed)
+internal readonly record struct CastTimeline(
+    bool IsActive,
+    float Elapsed,
+    float Total,
+    float SlideStart,
+    float CastEnd,
+    bool IsConfirmed)
 {
-    internal static GcdSegments Inactive => default;
+    internal static CastTimeline Inactive => default;
+    internal float Progress => IsActive ? Math.Clamp(Elapsed / Total, 0f, 1f) : 0f;
 }
 
 internal sealed class CastSegmentationTracker
@@ -27,101 +34,114 @@ internal sealed class CastSegmentationTracker
     private bool attached;
     private bool confirmed;
     private uint sourceSequence;
-    private float previousElapsed;
-    private float previousTotal;
-    private float predictedSlideStart;
+    private float previousGcdElapsed;
+    private float previousGcdTotal;
+    private float castStart;
+    private float castElapsed;
+    private float castTotal;
     private float observedSlideStart;
-    private float castEnd;
 
     internal bool NeedsCast(GcdState gcd)
     {
-        return !attached || IsNewCycle(gcd);
+        return !attached || gcd.IsActive && IsNewCycle(gcd);
     }
 
-    internal GcdSegments Update(GcdState gcd, CastSample cast, SlidecastTimingMode mode, float predictionMilliseconds)
-    {
-        if (!gcd.IsActive)
-        {
-            Reset();
-            return GcdSegments.Inactive;
-        }
+    internal bool IsTracking => attached;
 
-        var newCycle = IsNewCycle(gcd);
+    internal CastTimeline Update(GcdState gcd, CastSample cast, float predictionMilliseconds)
+    {
+        var newCycle = gcd.IsActive && IsNewCycle(gcd);
         if (newCycle)
         {
             ClearCast();
         }
 
-        wasGcdActive = true;
-        previousElapsed = gcd.Elapsed;
-        previousTotal = gcd.Total;
+        if (gcd.IsActive)
+        {
+            wasGcdActive = true;
+            previousGcdElapsed = gcd.Elapsed;
+            previousGcdTotal = gcd.Total;
+        }
+        else
+        {
+            wasGcdActive = false;
+        }
 
         if (!attached && IsCandidate(gcd, cast))
         {
-            Attach(gcd, cast, predictionMilliseconds);
+            Attach(gcd, cast);
         }
 
         if (!attached)
         {
-            return GcdSegments.Inactive;
+            return CastTimeline.Inactive;
         }
 
-        if (cast.SourceSequence == sourceSequence)
+        if (cast.SourceSequence != sourceSequence)
         {
-            if (!confirmed
-                && cast.SourceSequence != 0
-                && cast.ResponseSourceSequence == cast.SourceSequence)
+            if (!cast.IsCasting && confirmed && gcd.IsActive)
             {
-                observedSlideStart = Math.Clamp(gcd.Progress, 0f, castEnd);
-                confirmed = true;
+                return CreateTimeline(gcd, predictionMilliseconds);
             }
 
-            if (!cast.IsCasting && !confirmed)
+            ClearCast();
+            return CastTimeline.Inactive;
+        }
+
+        if (!confirmed
+            && sourceSequence != 0
+            && cast.ResponseSourceSequence == sourceSequence
+            && IsValidResponseElapsed(cast.Elapsed))
+        {
+            observedSlideStart = castStart + cast.Elapsed;
+            confirmed = true;
+        }
+
+        if (cast.IsCasting)
+        {
+            if (!IsValidCastTime(cast))
             {
                 ClearCast();
-                return GcdSegments.Inactive;
+                return CastTimeline.Inactive;
             }
+
+            castTotal = cast.Total;
+            castElapsed = cast.Elapsed;
         }
-        else if (!confirmed)
+        else if (!confirmed || !gcd.IsActive)
         {
             ClearCast();
-            return GcdSegments.Inactive;
+            return CastTimeline.Inactive;
         }
 
-        var slideStart = mode switch
-        {
-            SlidecastTimingMode.Confirmed => confirmed ? observedSlideStart : castEnd,
-            SlidecastTimingMode.Hybrid when confirmed => observedSlideStart,
-            _ => predictedSlideStart
-        };
-        return new GcdSegments(true, Math.Clamp(slideStart, 0f, castEnd), castEnd, confirmed);
+        return CreateTimeline(gcd, predictionMilliseconds);
     }
 
     internal void Reset()
     {
         wasGcdActive = false;
-        previousElapsed = 0f;
-        previousTotal = 0f;
+        previousGcdElapsed = 0f;
+        previousGcdTotal = 0f;
         ClearCast();
     }
 
     private static bool IsCandidate(GcdState gcd, CastSample cast)
     {
-        if (!cast.IsCasting || cast.SourceSequence == 0 || !IsValidCastTime(cast))
+        if (!gcd.IsActive || !cast.IsCasting || cast.SourceSequence == 0 || !IsValidCastTime(cast))
         {
             return false;
         }
 
-        var castStart = gcd.Elapsed - cast.Elapsed;
+        var start = gcd.Elapsed - cast.Elapsed;
         var usesGlobalCooldown = cast.RecastGroup == 57 || cast.AdditionalRecastGroup == 57;
-        return usesGlobalCooldown && MathF.Abs(castStart) <= StartTolerance;
+        return usesGlobalCooldown && MathF.Abs(start) <= StartTolerance;
     }
 
     private bool IsNewCycle(GcdState gcd)
     {
         return !wasGcdActive
-            || gcd.Elapsed + CycleTolerance < previousElapsed
-            || MathF.Abs(gcd.Total - previousTotal) > CycleTolerance && gcd.Elapsed < StartTolerance;
+            || gcd.Elapsed + CycleTolerance < previousGcdElapsed
+            || MathF.Abs(gcd.Total - previousGcdTotal) > CycleTolerance && gcd.Elapsed < StartTolerance;
     }
 
     private static bool IsValidCastTime(CastSample cast)
@@ -133,20 +153,36 @@ internal sealed class CastSegmentationTracker
             && cast.Elapsed <= cast.Total + StartTolerance;
     }
 
-    private void Attach(GcdState gcd, CastSample cast, float predictionMilliseconds)
+    private bool IsValidResponseElapsed(float elapsed)
+    {
+        return float.IsFinite(elapsed) && elapsed >= 0f && elapsed <= castTotal + StartTolerance;
+    }
+
+    private void Attach(GcdState gcd, CastSample cast)
     {
         attached = true;
         sourceSequence = cast.SourceSequence;
-        UpdateBoundaries(gcd, cast, predictionMilliseconds);
+        castStart = gcd.Elapsed - cast.Elapsed;
+        castElapsed = cast.Elapsed;
+        castTotal = cast.Total;
     }
 
-    private void UpdateBoundaries(GcdState gcd, CastSample cast, float predictionMilliseconds)
+    private CastTimeline CreateTimeline(GcdState gcd, float predictionMilliseconds)
     {
-        var castStart = gcd.Elapsed - cast.Elapsed;
-        var endSeconds = castStart + cast.Total;
-        castEnd = Math.Clamp(endSeconds / gcd.Total, 0f, 1f);
+        var castEndSeconds = castStart + castTotal;
+        var total = MathF.Max(gcd.IsActive ? gcd.Total : 0f, castEndSeconds);
+        var elapsed = gcd.IsActive ? gcd.Elapsed : castStart + castElapsed;
+
         var graceSeconds = Math.Clamp(predictionMilliseconds, 0f, 1000f) / 1000f;
-        predictedSlideStart = Math.Clamp((endSeconds - graceSeconds) / gcd.Total, 0f, castEnd);
+        var predicted = Math.Clamp(castEndSeconds - graceSeconds, 0f, castEndSeconds);
+        var slideSeconds = confirmed ? observedSlideStart : predicted;
+        return new CastTimeline(
+            true,
+            Math.Clamp(elapsed, 0f, total),
+            total,
+            Math.Clamp(slideSeconds / total, 0f, 1f),
+            Math.Clamp(castEndSeconds / total, 0f, 1f),
+            confirmed);
     }
 
     private void ClearCast()
@@ -154,8 +190,9 @@ internal sealed class CastSegmentationTracker
         attached = false;
         confirmed = false;
         sourceSequence = 0;
-        predictedSlideStart = 0f;
+        castStart = 0f;
+        castElapsed = 0f;
+        castTotal = 0f;
         observedSlideStart = 0f;
-        castEnd = 0f;
     }
 }

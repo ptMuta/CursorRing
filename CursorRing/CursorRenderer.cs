@@ -86,12 +86,14 @@ internal sealed class CursorRenderer
             var indicesBefore = measureGeometry ? drawList.IdxBuffer.Size : 0;
 #endif
             var gcd = settings.ShowGcd ? GlobalCooldownReader.Read() : GcdState.Inactive;
-            var segments = GcdSegments.Inactive;
+            var timeline = CastTimeline.Inactive;
             if (settings.ShowGcd && settings.ShowCastSegments)
             {
                 castSegmentationEnabled = true;
-                var cast = gcd.IsActive ? LocalCastReader.Read(castSegmentationTracker.NeedsCast(gcd)) : CastSample.Inactive;
-                segments = castSegmentationTracker.Update(gcd, cast, settings.SlidecastTiming, settings.SlidecastPredictionMilliseconds);
+                var cast = gcd.IsActive || castSegmentationTracker.IsTracking
+                    ? LocalCastReader.Read(castSegmentationTracker.NeedsCast(gcd))
+                    : CastSample.Inactive;
+                timeline = castSegmentationTracker.Update(gcd, cast, settings.SlidecastPredictionMilliseconds);
             }
             else if (castSegmentationEnabled)
             {
@@ -99,11 +101,11 @@ internal sealed class CursorRenderer
                 castSegmentationTracker.Reset();
             }
 
-            DrawAt(settings, drawList, position, gcd, segments);
+            DrawAt(settings, drawList, position, gcd, timeline);
 #if CURSORRING_BENCHMARK
             if (measureGeometry)
             {
-                work = new RenderWork(RenderStatus.Rendered, drawList.VtxBuffer.Size - verticesBefore, drawList.IdxBuffer.Size - indicesBefore, gcd.IsActive, segments.IsActive);
+                work = new RenderWork(RenderStatus.Rendered, drawList.VtxBuffer.Size - verticesBefore, drawList.IdxBuffer.Size - indicesBefore, gcd.IsActive, timeline.IsActive);
             }
 #endif
             drawFailureLogged = false;
@@ -150,13 +152,19 @@ internal sealed class CursorRenderer
         ImDrawListPtr drawList,
         Vector2 center,
         GcdState gcd,
-        GcdSegments segments,
+        CastTimeline timeline,
         float scale = 1f)
     {
         if (!settings.ShowGcd)
         {
             gcd = GcdState.Inactive;
-            segments = GcdSegments.Inactive;
+            timeline = CastTimeline.Inactive;
+        }
+
+        var segments = timeline;
+        if (timeline.IsActive)
+        {
+            gcd = new GcdState(true, timeline.Elapsed, timeline.Total);
         }
 
         var geometry = RingMath.GetGeometry(settings);
@@ -296,7 +304,7 @@ internal sealed class CursorRenderer
         float thickness,
         float borderThickness,
         GcdState gcd,
-        GcdSegments segments,
+        CastTimeline segments,
         float scale,
         uint gcdColor,
         uint trackColor)
@@ -330,7 +338,7 @@ internal sealed class CursorRenderer
         Vector2 center,
         float radius,
         GcdState gcd,
-        GcdSegments segments,
+        CastTimeline segments,
         float scale,
         uint gcdColor,
         uint trackColor)
@@ -375,7 +383,7 @@ internal sealed class CursorRenderer
         float radius,
         float thickness,
         ProgressRange visible,
-        GcdSegments segments,
+        CastTimeline segments,
         uint gcdColor)
     {
         if (!segments.IsActive)
@@ -397,7 +405,7 @@ internal sealed class CursorRenderer
         Vector2 center,
         float radius,
         ProgressRange visible,
-        GcdSegments segments,
+        CastTimeline segments,
         uint gcdColor)
     {
         if (!segments.IsActive)
@@ -420,7 +428,7 @@ internal sealed class CursorRenderer
         float radius,
         float visualWidth,
         ProgressRange visible,
-        GcdSegments segments,
+        CastTimeline segments,
         float scale,
         bool pie)
     {

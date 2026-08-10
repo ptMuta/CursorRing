@@ -298,7 +298,7 @@ internal sealed class ConfigWindow : Window
 
     private void DrawCastSettings()
     {
-        DrawSection("Cast timing", "Show cast, slidecast, and post-cast segments on the GCD indicator.");
+        DrawSection("Cast timing", "Show cast, slidecast, and post-cast segments. Long casts scale the ring to their complete live duration.");
         if (!Settings.ShowGcd)
         {
             DrawHint("Enable the GCD indicator before configuring cast timing.");
@@ -315,11 +315,8 @@ internal sealed class ConfigWindow : Window
         {
             if (BeginForm("cast_timing"))
             {
-                changed |= DrawEnum("slidecast_timing", "Timing source", Settings.SlidecastTiming, SlidecastTimingLabel, value => Settings.SlidecastTiming = value);
-                if (Settings.SlidecastTiming != SlidecastTimingMode.Confirmed)
-                {
-                    changed |= DrawFloat("predicted_grace", "Predicted grace window", Settings.SlidecastPredictionMilliseconds, 0f, 1000f, "%.0f ms", value => Settings.SlidecastPredictionMilliseconds = value);
-                }
+                changed |= DrawFloat("predicted_grace", "Predicted grace window", Settings.SlidecastPredictionMilliseconds, 0f, 1000f, "%.0f ms", value => Settings.SlidecastPredictionMilliseconds = value);
+                DrawHint("Prediction estimates the window from the live cast total. Confirmation uses the matching response after it is observed.");
                 changed |= DrawColor("casting_color", "Casting color", Settings.CastSegmentColor, value => Settings.CastSegmentColor = value);
                 changed |= DrawColor("slidecast_color", "Slidecast color", Settings.SlidecastSegmentColor, value => Settings.SlidecastSegmentColor = value);
                 ImGui.EndTable();
@@ -1246,7 +1243,7 @@ internal sealed class ConfigWindow : Window
         var scale = MathF.Min(1f, MathF.Min((previewHeight - 10f) / (extent * 2f), (width - 10f) / (extent * 2f)));
         var previewProgress = Settings.ProgressBehavior == ProgressBehavior.Fill ? 0.9f : 0.35f;
         var gcd = Settings.ShowGcd ? new GcdState(true, previewProgress * 2.5f, 2.5f) : GcdState.Inactive;
-        var segments = Settings.ShowGcd && Settings.ShowCastSegments ? new GcdSegments(true, 0.55f, 0.78f, true) : GcdSegments.Inactive;
+        var segments = Settings.ShowGcd && Settings.ShowCastSegments ? new CastTimeline(true, gcd.Elapsed, gcd.Total, 0.55f, 0.78f, true) : CastTimeline.Inactive;
         CursorRenderer.DrawAt(Settings, ImGui.GetWindowDrawList(), center, gcd, segments, scale);
         ImGui.Dummy(new Vector2(width, previewHeight));
     }
@@ -1381,13 +1378,4 @@ internal sealed class ConfigWindow : Window
         return value == RotationDirection.Clockwise ? "Clockwise" : "Counterclockwise";
     }
 
-    private static string SlidecastTimingLabel(SlidecastTimingMode value)
-    {
-        return value switch
-        {
-            SlidecastTimingMode.Predicted => "Estimated",
-            SlidecastTimingMode.Confirmed => "Game-confirmed",
-            _ => "Estimated, then confirmed"
-        };
-    }
 }
