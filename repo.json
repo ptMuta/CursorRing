@@ -3,7 +3,7 @@
     "Author": "ptMuta",
     "Name": "CursorRing",
     "InternalName": "CursorRing",
-    "AssemblyVersion": "1.0.0.2",
+    "AssemblyVersion": "1.0.0.3",
     "Description": "Replaces the in-game cursor with a hollow ring and center dot. Global cooldown progress can appear as an inner ring, outer ring, stroke overlay, or pie overlay. Open settings with /cursorring.",
     "ApplicableVersion": "any",
     "Tags": [
@@ -18,8 +18,8 @@
     "IconUrl": "https://raw.githubusercontent.com/ptMuta/CursorRing/master/images/icon.png",
     "IsHide": false,
     "IsTestingExclusive": false,
-    "DownloadLinkInstall": "https://github.com/ptMuta/CursorRing/releases/download/1.0.0-rc2/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/ptMuta/CursorRing/releases/download/1.0.0-rc2/latest.zip",
-    "LastUpdate": "1786290637"
+    "DownloadLinkInstall": "https://github.com/ptMuta/CursorRing/releases/download/1.0.0-rc3/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/ptMuta/CursorRing/releases/download/1.0.0-rc3/latest.zip",
+    "LastUpdate": "1786321877"
   }
 ]

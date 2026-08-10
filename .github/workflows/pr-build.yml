@@ -155,9 +155,17 @@ jobs:
           if ([version]$entry.AssemblyVersion -gt [version]$manifest.AssemblyVersion) {
             throw 'Custom repository AssemblyVersion cannot exceed the packaged manifest.'
           }
-          $response = Invoke-WebRequest -Uri $entry.DownloadLinkInstall -Method Head
-          if ($response.StatusCode -ne 200) {
-            throw "Release package returned HTTP $($response.StatusCode)."
+          if ([version]$entry.AssemblyVersion -eq [version]$manifest.AssemblyVersion) {
+            $expectedLink = "https://github.com/ptMuta/CursorRing/releases/download/$($manifest.AssemblyVersion -replace '\.(\d+)$', '-rc$1')/latest.zip"
+            if ($entry.DownloadLinkInstall -ne $expectedLink) {
+              throw "Predictive release package URL must be $expectedLink."
+            }
+          }
+          else {
+            $response = Invoke-WebRequest -Uri $entry.DownloadLinkInstall -Method Head
+            if ($response.StatusCode -ne 200) {
+              throw "Release package returned HTTP $($response.StatusCode)."
+            }
           }
 
       - name: Store artifact

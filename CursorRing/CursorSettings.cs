@@ -42,13 +42,6 @@ public enum RotationDirection
     Counterclockwise
 }
 
-public enum SlidecastTimingMode
-{
-    Predicted,
-    Confirmed,
-    Hybrid
-}
-
 public class CursorSettings
 {
     private static readonly Vector4 DefaultRingColor = Vector4.One;
@@ -87,7 +80,6 @@ public class CursorSettings
     public float GcdBorderThickness { get; set; } = 1f;
     public Vector4 GcdBorderColor { get; set; } = DefaultBorderColor;
     public bool ShowCastSegments { get; set; }
-    public SlidecastTimingMode SlidecastTiming { get; set; } = SlidecastTimingMode.Hybrid;
     public float SlidecastPredictionMilliseconds { get; set; } = 500f;
     public Vector4 CastSegmentColor { get; set; } = DefaultCastColor;
     public Vector4 SlidecastSegmentColor { get; set; } = DefaultSlidecastColor;
@@ -120,7 +112,6 @@ public class CursorSettings
         changed |= Update(GcdTrackColor, NormalizeColor(GcdTrackColor, DefaultTrackColor), value => GcdTrackColor = value);
         changed |= Update(GcdBorderThickness, NormalizeNumber(GcdBorderThickness, 1f, 1f, 20f), value => GcdBorderThickness = value);
         changed |= Update(GcdBorderColor, NormalizeColor(GcdBorderColor, DefaultBorderColor), value => GcdBorderColor = value);
-        changed |= Update(SlidecastTiming, NormalizeEnum(SlidecastTiming, SlidecastTimingMode.Hybrid), value => SlidecastTiming = value);
         changed |= Update(SlidecastPredictionMilliseconds, NormalizeNumber(SlidecastPredictionMilliseconds, 500f, 0f, 1000f), value => SlidecastPredictionMilliseconds = value);
         changed |= Update(CastSegmentColor, NormalizeColor(CastSegmentColor, DefaultCastColor), value => CastSegmentColor = value);
         changed |= Update(SlidecastSegmentColor, NormalizeColor(SlidecastSegmentColor, DefaultSlidecastColor), value => SlidecastSegmentColor = value);
@@ -160,7 +151,6 @@ public class CursorSettings
         changed |= Update(GcdBorderThickness, 1f, value => GcdBorderThickness = value);
         changed |= Update(GcdBorderColor, DefaultBorderColor, value => GcdBorderColor = value);
         changed |= Update(ShowCastSegments, false, value => ShowCastSegments = value);
-        changed |= Update(SlidecastTiming, SlidecastTimingMode.Hybrid, value => SlidecastTiming = value);
         changed |= Update(SlidecastPredictionMilliseconds, 500f, value => SlidecastPredictionMilliseconds = value);
         changed |= Update(CastSegmentColor, DefaultCastColor, value => CastSegmentColor = value);
         changed |= Update(SlidecastSegmentColor, DefaultSlidecastColor, value => SlidecastSegmentColor = value);
@@ -168,6 +158,51 @@ public class CursorSettings
         changed |= Update(SegmentDividerThickness, 1f, value => SegmentDividerThickness = value);
         changed |= Update(SegmentDividerColor, DefaultBorderColor, value => SegmentDividerColor = value);
         return changed;
+    }
+
+    public CursorSettings Copy()
+    {
+        var copy = new CursorSettings();
+        copy.CopyFrom(this);
+        return copy;
+    }
+
+    public void CopyFrom(CursorSettings source)
+    {
+        Version = source.Version;
+        Visibility = source.Visibility;
+        MouseLook = source.MouseLook;
+        RingDiameter = source.RingDiameter;
+        RingThickness = source.RingThickness;
+        DotDiameter = source.DotDiameter;
+        RingColor = source.RingColor;
+        DotColor = source.DotColor;
+        ShowRingBorder = source.ShowRingBorder;
+        RingBorderThickness = source.RingBorderThickness;
+        RingBorderColor = source.RingBorderColor;
+        ShowDotBorder = source.ShowDotBorder;
+        DotBorderThickness = source.DotBorderThickness;
+        DotBorderColor = source.DotBorderColor;
+        ShowGcd = source.ShowGcd;
+        GcdPlacement = source.GcdPlacement;
+        OverlayFill = source.OverlayFill;
+        ProgressBehavior = source.ProgressBehavior;
+        Rotation = source.Rotation;
+        GcdThickness = source.GcdThickness;
+        GcdSpacing = source.GcdSpacing;
+        GcdColor = source.GcdColor;
+        ShowGcdTrack = source.ShowGcdTrack;
+        GcdTrackColor = source.GcdTrackColor;
+        ShowGcdBorder = source.ShowGcdBorder;
+        GcdBorderThickness = source.GcdBorderThickness;
+        GcdBorderColor = source.GcdBorderColor;
+        ShowCastSegments = source.ShowCastSegments;
+        SlidecastPredictionMilliseconds = source.SlidecastPredictionMilliseconds;
+        CastSegmentColor = source.CastSegmentColor;
+        SlidecastSegmentColor = source.SlidecastSegmentColor;
+        ShowSegmentDividers = source.ShowSegmentDividers;
+        SegmentDividerThickness = source.SegmentDividerThickness;
+        SegmentDividerColor = source.SegmentDividerColor;
     }
 
     private static T NormalizeEnum<T>(T value, T fallback) where T : struct, Enum
@@ -204,4 +239,24 @@ public class CursorSettings
         setter(value);
         return true;
     }
+}
+
+public enum AssignmentScope
+{
+    Territory,
+    Duty
+}
+
+public sealed class CursorProfile
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = string.Empty;
+    public CursorSettings Settings { get; set; } = new();
+}
+
+public sealed class CursorAssignment
+{
+    public AssignmentScope Scope { get; set; }
+    public uint TargetId { get; set; }
+    public Guid ProfileId { get; set; }
 }

@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\CursorRing\CursorSettings.cs" Link="Production\CursorSettings.cs" />
+    <Compile Include="..\CursorRing\ProfileRules.cs" Link="Production\ProfileRules.cs" />
     <Compile Include="..\CursorRing\CursorPositionTracker.cs" Link="Production\CursorPositionTracker.cs" />
     <Compile Include="..\CursorRing\CastSegmentation.cs" Link="Production\CastSegmentation.cs" />
     <Compile Include="..\CursorRing\GcdState.cs" Link="Production\GcdState.cs" />
