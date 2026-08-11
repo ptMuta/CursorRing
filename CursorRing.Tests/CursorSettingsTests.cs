@@ -25,6 +25,17 @@ public sealed class CursorSettingsTests
         Assert.Equal(1f, settings.RingBorderThickness);
         Assert.Equal(1f, settings.DotBorderThickness);
         Assert.Equal(1f, settings.GcdBorderThickness);
+        Assert.True(settings.ShowHoverIndicator);
+        Assert.Equal(HoverVisibilityMode.WheneverVisible, settings.HoverVisibility);
+        Assert.Equal(HoverIndicatorStyle.InwardCarets, settings.HoverIndicatorStyle);
+        Assert.Equal(8f, settings.HoverIndicatorSize);
+        Assert.Equal(3f, settings.HoverIndicatorThickness);
+        Assert.Equal(3f, settings.HoverIndicatorOffset);
+        Assert.Equal(0f, settings.HoverIndicatorRotationDegrees);
+        Assert.Equal(new Vector4(1f, 0.75f, 0.1f, 1f), settings.HoverIndicatorColor);
+        Assert.False(settings.UseHoverRingColor);
+        Assert.False(settings.UseHoverDotColor);
+        Assert.False(settings.HideDotOnHover);
         Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.RingBorderColor);
         Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.DotBorderColor);
         Assert.Equal(new Vector4(0f, 0f, 0f, 1f), settings.GcdBorderColor);
@@ -49,6 +60,15 @@ public sealed class CursorSettingsTests
             RingBorderColor = new Vector4(-1f, 2f, float.NaN, 0.5f),
             DotBorderThickness = 100f,
             DotBorderColor = new Vector4(2f, -1f, 0.5f, float.NaN),
+            HoverVisibility = (HoverVisibilityMode)999,
+            HoverIndicatorStyle = (HoverIndicatorStyle)999,
+            HoverIndicatorSize = float.PositiveInfinity,
+            HoverIndicatorThickness = 100f,
+            HoverIndicatorOffset = -1f,
+            HoverIndicatorRotationDegrees = float.NaN,
+            HoverIndicatorColor = new Vector4(-1f, 2f, float.NaN, 0.5f),
+            HoverRingColor = new Vector4(2f, -1f, 0.5f, float.NaN),
+            HoverDotColor = new Vector4(-1f, 2f, 0.5f, float.NaN),
             GcdPlacement = (GcdPlacement)999,
             OverlayFill = (OverlayFillStyle)999,
             ProgressBehavior = (ProgressBehavior)999,
@@ -78,6 +98,15 @@ public sealed class CursorSettingsTests
         Assert.Equal(new Vector4(0f, 1f, 0f, 0.5f), settings.RingBorderColor);
         Assert.Equal(20f, settings.DotBorderThickness);
         Assert.Equal(new Vector4(1f, 0f, 0.5f, 1f), settings.DotBorderColor);
+        Assert.Equal(HoverVisibilityMode.WheneverVisible, settings.HoverVisibility);
+        Assert.Equal(HoverIndicatorStyle.InwardCarets, settings.HoverIndicatorStyle);
+        Assert.Equal(8f, settings.HoverIndicatorSize);
+        Assert.Equal(8f, settings.HoverIndicatorThickness);
+        Assert.Equal(0f, settings.HoverIndicatorOffset);
+        Assert.Equal(0f, settings.HoverIndicatorRotationDegrees);
+        Assert.Equal(new Vector4(0f, 1f, 0.1f, 0.5f), settings.HoverIndicatorColor);
+        Assert.Equal(new Vector4(1f, 0f, 0.5f, 1f), settings.HoverRingColor);
+        Assert.Equal(new Vector4(0f, 1f, 0.5f, 1f), settings.HoverDotColor);
         Assert.Equal(GcdPlacement.Outer, settings.GcdPlacement);
         Assert.Equal(OverlayFillStyle.Stroke, settings.OverlayFill);
         Assert.Equal(ProgressBehavior.Drain, settings.ProgressBehavior);
@@ -104,6 +133,18 @@ public sealed class CursorSettingsTests
     }
 
     [Fact]
+    public void LegacyVisibilityValuesRemainCompatible()
+    {
+        var always = new CursorSettings { Visibility = (VisibilityMode)0 };
+        var combat = new CursorSettings { Visibility = (VisibilityMode)1 };
+
+        Assert.False(always.Normalize());
+        Assert.False(combat.Normalize());
+        Assert.Equal(VisibilityMode.Always, always.Visibility);
+        Assert.Equal(VisibilityMode.CombatOnly, combat.Visibility);
+    }
+
+    [Fact]
     public void ResetRestoresEveryDefault()
     {
         var settings = new CursorSettings
@@ -122,6 +163,19 @@ public sealed class CursorSettingsTests
             ShowDotBorder = false,
             DotBorderThickness = 10f,
             DotBorderColor = Vector4.One,
+            ShowHoverIndicator = false,
+            HoverVisibility = HoverVisibilityMode.InCombatOnly,
+            HoverIndicatorStyle = HoverIndicatorStyle.CornerBrackets,
+            HoverIndicatorSize = 20f,
+            HoverIndicatorThickness = 5f,
+            HoverIndicatorOffset = 10f,
+            HoverIndicatorRotationDegrees = 45f,
+            HoverIndicatorColor = Vector4.Zero,
+            UseHoverRingColor = true,
+            HoverRingColor = Vector4.Zero,
+            UseHoverDotColor = true,
+            HoverDotColor = Vector4.Zero,
+            HideDotOnHover = true,
             ShowGcd = false,
             GcdPlacement = GcdPlacement.Inner,
             OverlayFill = OverlayFillStyle.Pie,

@@ -62,7 +62,7 @@ internal static class ProfileRules
         for (var index = assignments.Count - 1; index >= 0; index--)
         {
             var assignment = assignments[index];
-            if (assignment is null || !Enum.IsDefined(assignment.Scope) || assignment.TargetId == 0 || (assignment.ProfileId != Guid.Empty && !ids.Contains(assignment.ProfileId)) || !targets.Add((assignment.Scope, assignment.TargetId)))
+            if (assignment is null || !IsValidTarget(assignment.Scope, assignment.TargetId) || (assignment.ProfileId != Guid.Empty && !ids.Contains(assignment.ProfileId)) || !targets.Add((assignment.Scope, assignment.TargetId)))
             {
                 assignments.RemoveAt(index);
                 changed = true;
@@ -71,9 +71,21 @@ internal static class ProfileRules
         return changed;
     }
 
-    internal static Guid Resolve(IReadOnlyDictionary<uint, Guid> territories, IReadOnlyDictionary<uint, Guid> duties, uint territoryId, uint dutyGroupId, Guid defaultProfileId)
+    internal static Guid Resolve(IReadOnlyDictionary<(AssignmentScope, uint), Guid> assignments, uint territoryId, uint dutyGroupId, uint pvpGroupId, bool inDuty, bool inPvP, Guid defaultProfileId)
     {
-        return duties.TryGetValue(dutyGroupId, out var duty) ? duty : territories.TryGetValue(territoryId, out var territory) ? territory : defaultProfileId;
+        if (inPvP)
+        {
+            return pvpGroupId != 0 && assignments.TryGetValue((AssignmentScope.PvP, pvpGroupId), out var pvp) ? pvp
+                : assignments.TryGetValue((AssignmentScope.PvPAny, 0), out var pvpAny) ? pvpAny
+                : defaultProfileId;
+        }
+        if (inDuty)
+        {
+            return dutyGroupId != 0 && assignments.TryGetValue((AssignmentScope.Duty, dutyGroupId), out var duty) ? duty
+                : assignments.TryGetValue((AssignmentScope.DutyAny, 0), out var dutyAny) ? dutyAny
+                : defaultProfileId;
+        }
+        return territoryId != 0 && assignments.TryGetValue((AssignmentScope.Territory, territoryId), out var territory) ? territory : defaultProfileId;
     }
 
     internal static Guid NormalizeDefaultProfileId(IReadOnlyList<CursorProfile> profiles, Guid id)
@@ -92,17 +104,41 @@ internal static class ProfileRules
         return Guid.Empty;
     }
 
-    internal static bool NormalizeZoneTargets(List<CursorAssignment> assignments, IReadOnlyDictionary<uint, uint> groups)
+    internal static bool NormalizeCatalogTargets(
+        List<CursorAssignment> assignments,
+        IReadOnlyDictionary<uint, uint> zones,
+        IReadOnlyDictionary<uint, uint> duties,
+        IReadOnlyDictionary<uint, uint> pvpDuties,
+        IReadOnlySet<uint> contextualTerritories)
     {
         var changed = false;
         var targets = new HashSet<(AssignmentScope, uint)>();
         for (var index = assignments.Count - 1; index >= 0; index--)
         {
             var assignment = assignments[index];
-            if (assignment.Scope == AssignmentScope.Territory && groups.TryGetValue(assignment.TargetId, out var groupId) && assignment.TargetId != groupId)
+            if (assignment.Scope == AssignmentScope.Territory)
             {
-                assignment.TargetId = groupId;
-                changed = true;
+                if (zones.TryGetValue(assignment.TargetId, out var zoneGroupId))
+                {
+                    changed |= UpdateTarget(assignment, AssignmentScope.Territory, zoneGroupId);
+                }
+                else if (contextualTerritories.Contains(assignment.TargetId))
+                {
+                    assignments.RemoveAt(index);
+                    changed = true;
+                    continue;
+                }
+            }
+            else if (assignment.Scope == AssignmentScope.Duty)
+            {
+                if (pvpDuties.TryGetValue(assignment.TargetId, out var pvpGroupId))
+                {
+                    changed |= UpdateTarget(assignment, AssignmentScope.PvP, pvpGroupId);
+                }
+                else if (duties.TryGetValue(assignment.TargetId, out var dutyGroupId))
+                {
+                    changed |= UpdateTarget(assignment, AssignmentScope.Duty, dutyGroupId);
+                }
             }
             if (!targets.Add((assignment.Scope, assignment.TargetId)))
             {
@@ -112,4 +148,26 @@ internal static class ProfileRules
         }
         return changed;
     }
+
+    private static bool IsValidTarget(AssignmentScope scope, uint targetId)
+    {
+        return scope switch
+        {
+            AssignmentScope.Territory or AssignmentScope.Duty or AssignmentScope.PvP => targetId != 0,
+            AssignmentScope.DutyAny or AssignmentScope.PvPAny => targetId == 0,
+            _ => false
+        };
+    }
+
+    private static bool UpdateTarget(CursorAssignment assignment, AssignmentScope scope, uint targetId)
+    {
+        if (assignment.Scope == scope && assignment.TargetId == targetId)
+        {
+            return false;
+        }
+        assignment.Scope = scope;
+        assignment.TargetId = targetId;
+        return true;
+    }
+
 }

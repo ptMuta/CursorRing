@@ -23,8 +23,11 @@ internal sealed class CursorRenderer
     private readonly CursorPositionTracker positionTracker = new();
     private readonly CastSegmentationTracker castSegmentationTracker = new();
     private bool cursorHidden;
+    private bool nativeCursorHidden;
+    private bool nativeCursorWasVisible;
     private bool drawFailureLogged;
     private bool castSegmentationEnabled;
+    private bool inDuty;
 
     internal CursorRenderer(
         ProfileManager profiles,
@@ -73,12 +76,13 @@ internal sealed class CursorRenderer
         try
         {
             var settings = profiles.ActiveSettings;
-            if (!TryGetPosition(settings, out var position))
+            if (!TryGetPosition(settings, out var position, out var inCombat, out var mouseLook))
             {
                 Hide();
                 return false;
             }
 
+            var hovered = HoverRules.IsEnabled(settings, inCombat, mouseLook) && HoveredEntityReader.Read();
             SetCursorHidden(true);
             var drawList = ImGui.GetForegroundDrawList(ImGui.GetMainViewport());
 #if CURSORRING_BENCHMARK
@@ -101,11 +105,12 @@ internal sealed class CursorRenderer
                 castSegmentationTracker.Reset();
             }
 
-            DrawAt(settings, drawList, position, gcd, timeline);
+            DrawAt(settings, drawList, position, gcd, timeline, hovered: hovered);
+            SetNativeCursorHidden(true);
 #if CURSORRING_BENCHMARK
             if (measureGeometry)
             {
-                work = new RenderWork(RenderStatus.Rendered, drawList.VtxBuffer.Size - verticesBefore, drawList.IdxBuffer.Size - indicesBefore, gcd.IsActive, timeline.IsActive);
+                work = new RenderWork(RenderStatus.Rendered, drawList.VtxBuffer.Size - verticesBefore, drawList.IdxBuffer.Size - indicesBefore, gcd.IsActive, timeline.IsActive, hovered);
             }
 #endif
             drawFailureLogged = false;
@@ -138,6 +143,17 @@ internal sealed class CursorRenderer
         }
 
         SetCursorHidden(false);
+        SetNativeCursorHidden(false);
+    }
+
+    internal void SetInDuty(bool value)
+    {
+        if (inDuty == value)
+        {
+            return;
+        }
+        inDuty = value;
+        ResetState();
     }
 
     internal void ResetState()
@@ -153,8 +169,10 @@ internal sealed class CursorRenderer
         Vector2 center,
         GcdState gcd,
         CastTimeline timeline,
-        float scale = 1f)
+        float scale = 1f,
+        bool hovered = false)
     {
+        center = RingMath.SnapCenter(center);
         if (!settings.ShowGcd)
         {
             gcd = GcdState.Inactive;
@@ -175,8 +193,7 @@ internal sealed class CursorRenderer
         var ringThickness = settings.RingThickness * scale;
         var gcdThickness = settings.GcdThickness * scale;
         var innerThickness = geometry.InnerThickness * scale;
-        var ringColor = ImGui.ColorConvertFloat4ToU32(settings.RingColor);
-        var dotColor = ImGui.ColorConvertFloat4ToU32(settings.DotColor);
+        var ringColor = ImGui.ColorConvertFloat4ToU32(hovered && settings.UseHoverRingColor ? settings.HoverRingColor : settings.RingColor);
         var gcdColor = ImGui.ColorConvertFloat4ToU32(settings.GcdColor);
         var trackColor = ImGui.ColorConvertFloat4ToU32(settings.GcdTrackColor);
 
@@ -217,20 +234,38 @@ internal sealed class CursorRenderer
             DrawGcdStroke(settings, drawList, center, radius, thickness, borderThickness, gcd, segments, scale, gcdColor, trackColor);
         }
 
-        var dotRadius = settings.DotDiameter * scale / 2f;
-        if (settings.ShowDotBorder)
+        if (hovered && settings.ShowHoverIndicator)
         {
-            var dotBorderColor = ImGui.ColorConvertFloat4ToU32(settings.DotBorderColor);
-            drawList.AddCircleFilled(center, dotRadius + (settings.DotBorderThickness * scale), dotBorderColor);
+            DrawHoverIndicator(settings, drawList, center, scale);
         }
 
-        drawList.AddCircleFilled(center, dotRadius, dotColor);
+        if (!(hovered && settings.HideDotOnHover))
+        {
+            var dotRadius = settings.DotDiameter * scale / 2f;
+            if (settings.ShowDotBorder)
+            {
+                var dotBorderColor = ImGui.ColorConvertFloat4ToU32(settings.DotBorderColor);
+                drawList.AddCircleFilled(center, dotRadius + (settings.DotBorderThickness * scale), dotBorderColor);
+            }
+
+            var dotColor = ImGui.ColorConvertFloat4ToU32(hovered && settings.UseHoverDotColor ? settings.HoverDotColor : settings.DotColor);
+            drawList.AddCircleFilled(center, dotRadius, dotColor);
+        }
     }
 
-    private unsafe bool TryGetPosition(CursorSettings settings, out Vector2 position)
+    private unsafe bool TryGetPosition(CursorSettings settings, out Vector2 position, out bool inCombat, out bool mouseLook)
     {
         position = default;
+        inCombat = false;
+        mouseLook = false;
         if (!clientState.IsLoggedIn || !playerState.IsLoaded || !uiBuilder.ShouldModifyUi || ImGui.GetIO().AppFocusLost)
+        {
+            return false;
+        }
+
+        inCombat = condition[ConditionFlag.InCombat];
+        mouseLook = IsMouseLookActive();
+        if (!VisibilityRules.IsVisible(settings, inCombat, inDuty, mouseLook))
         {
             return false;
         }
@@ -241,25 +276,7 @@ internal sealed class CursorRenderer
             return false;
         }
 
-        var mouseLook = IsMouseLookActive();
         if (!mouseLook && nativeCursor->IsCursorOutsideViewPort)
-        {
-            return false;
-        }
-
-        var inCombat = condition[ConditionFlag.InCombat];
-        var visible = settings.Visibility == VisibilityMode.Always || inCombat;
-        if (mouseLook)
-        {
-            visible = settings.MouseLook switch
-            {
-                MouseLookVisibility.FollowVisibility => visible,
-                MouseLookVisibility.CombatOnly => inCombat,
-                _ => false
-            };
-        }
-
-        if (!visible)
         {
             return false;
         }
@@ -268,6 +285,81 @@ internal sealed class CursorRenderer
         var mouse = ImGui.GetMousePos();
         var maximum = viewport.Pos + viewport.Size;
         return positionTracker.TryResolve(mouse, viewport.Pos, maximum, mouseLook, out position);
+    }
+
+    private static void DrawHoverIndicator(CursorSettings settings, ImDrawListPtr drawList, Vector2 center, float scale)
+    {
+        var geometry = HoverIndicatorMath.GetGeometry(settings);
+        var inner = geometry.InnerRadius * scale;
+        var outer = geometry.OuterRadius * scale;
+        var caretHalfWidth = geometry.CaretHalfWidth * scale;
+        var thickness = geometry.Thickness * scale;
+        var cosine = MathF.Cos(geometry.RotationRadians);
+        var sine = MathF.Sin(geometry.RotationRadians);
+        var horizontal = new Vector2(cosine, sine);
+        var vertical = new Vector2(-sine, cosine);
+        var color = ImGui.ColorConvertFloat4ToU32(settings.HoverIndicatorColor);
+
+        if (settings.HoverIndicatorStyle == HoverIndicatorStyle.CornerBrackets)
+        {
+            DrawCornerBracket(drawList, center, horizontal, vertical, outer, settings.HoverIndicatorSize * scale, thickness, color, 1f, 1f);
+            DrawCornerBracket(drawList, center, horizontal, vertical, outer, settings.HoverIndicatorSize * scale, thickness, color, -1f, 1f);
+            DrawCornerBracket(drawList, center, horizontal, vertical, outer, settings.HoverIndicatorSize * scale, thickness, color, -1f, -1f);
+            DrawCornerBracket(drawList, center, horizontal, vertical, outer, settings.HoverIndicatorSize * scale, thickness, color, 1f, -1f);
+            return;
+        }
+
+        DrawRadialIndicator(settings.HoverIndicatorStyle, drawList, center, horizontal, vertical, inner, outer, caretHalfWidth, thickness, color);
+        DrawRadialIndicator(settings.HoverIndicatorStyle, drawList, center, vertical, -horizontal, inner, outer, caretHalfWidth, thickness, color);
+        DrawRadialIndicator(settings.HoverIndicatorStyle, drawList, center, -horizontal, -vertical, inner, outer, caretHalfWidth, thickness, color);
+        DrawRadialIndicator(settings.HoverIndicatorStyle, drawList, center, -vertical, horizontal, inner, outer, caretHalfWidth, thickness, color);
+    }
+
+    private static unsafe void DrawRadialIndicator(
+        HoverIndicatorStyle style,
+        ImDrawListPtr drawList,
+        Vector2 center,
+        Vector2 radial,
+        Vector2 tangent,
+        float inner,
+        float outer,
+        float caretHalfWidth,
+        float thickness,
+        uint color)
+    {
+        var start = center + (radial * inner);
+        var end = center + (radial * outer);
+        if (style == HoverIndicatorStyle.Crosshair)
+        {
+            drawList.AddLine(start, end, color, thickness);
+            return;
+        }
+
+        var points = stackalloc Vector2[3];
+        points[0] = end + (tangent * caretHalfWidth);
+        points[1] = start;
+        points[2] = end - (tangent * caretHalfWidth);
+        drawList.AddPolyline(points, 3, color, ImDrawFlags.None, thickness);
+    }
+
+    private static unsafe void DrawCornerBracket(
+        ImDrawListPtr drawList,
+        Vector2 center,
+        Vector2 horizontal,
+        Vector2 vertical,
+        float radius,
+        float size,
+        float thickness,
+        uint color,
+        float horizontalSign,
+        float verticalSign)
+    {
+        var corner = center + (horizontal * radius * horizontalSign) + (vertical * radius * verticalSign);
+        var points = stackalloc Vector2[3];
+        points[0] = corner - (horizontal * size * horizontalSign);
+        points[1] = corner;
+        points[2] = corner - (vertical * size * verticalSign);
+        drawList.AddPolyline(points, 3, color, ImDrawFlags.None, thickness);
     }
 
     private static unsafe bool IsMouseLookActive()
@@ -294,6 +386,47 @@ internal sealed class CursorRenderer
         }
 
         cursorHidden = hidden;
+    }
+
+    private static unsafe Cursor* GetNativeCursor()
+    {
+        try
+        {
+            return Cursor.Instance();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private unsafe void SetNativeCursorHidden(bool hidden)
+    {
+        var nativeCursor = GetNativeCursor();
+        if (hidden)
+        {
+            if (nativeCursor is null)
+            {
+                return;
+            }
+            if (!nativeCursorHidden)
+            {
+                nativeCursorWasVisible = nativeCursor->IsCursorVisible;
+                nativeCursorHidden = true;
+            }
+            nativeCursor->IsCursorVisible = false;
+            return;
+        }
+
+        if (!nativeCursorHidden)
+        {
+            return;
+        }
+        if (nativeCursor is not null)
+        {
+            nativeCursor->IsCursorVisible = nativeCursorWasVisible;
+        }
+        nativeCursorHidden = false;
     }
 
     private static void DrawGcdStroke(

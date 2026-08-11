@@ -6,8 +6,10 @@ CursorRing is a Dalamud plugin that replaces the Final Fantasy XIV cursor with a
 
 ## Features
 
-- Always-visible or combat-only cursor replacement
+- Always, combat, duty, duty-combat, or combat-or-duty visibility
+- Separate profile assignments for PvE zones, PvE duties, and PvP locations
 - Configurable behavior during camera mouse-look
+- Interactable-entity hover feedback with crosshair, inward-caret, or corner-bracket styles
 - Highly customisable
 - Optional GCD ring
 - Optional cast, slidecast, and post-cast GCD segments with independent colors
