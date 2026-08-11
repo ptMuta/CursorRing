@@ -19,7 +19,7 @@ internal enum BenchmarkPhase
     Collecting
 }
 
-internal readonly record struct RenderWork(RenderStatus Status, int Vertices, int Indices, bool GcdActive, bool CastSegmentsActive = false)
+internal readonly record struct RenderWork(RenderStatus Status, int Vertices, int Indices, bool GcdActive, bool CastSegmentsActive = false, bool HoverActive = false)
 {
     internal bool Rendered => Status == RenderStatus.Rendered;
     internal bool Failed => Status == RenderStatus.Failed;
@@ -35,6 +35,7 @@ internal readonly record struct RenderBenchmarkResult(
     int FailedFrames,
     int GcdActiveFrames,
     int CastSegmentFrames,
+    int HoveredFrames,
     double MeanMicroseconds,
     double P95Microseconds,
     double P99Microseconds,
@@ -62,6 +63,7 @@ internal readonly record struct RenderBenchmarkResult(
         var failedFrames = 0;
         var gcdActiveFrames = 0;
         var castSegmentFrames = 0;
+        var hoveredFrames = 0;
         long renderedTicks = 0;
         long hiddenTicks = 0;
         long allocatedBytes = 0;
@@ -99,6 +101,10 @@ internal readonly record struct RenderBenchmarkResult(
             {
                 castSegmentFrames++;
             }
+            if (sample.Work.HoverActive)
+            {
+                hoveredFrames++;
+            }
 
             renderedTicks += sample.Ticks;
             allocatedBytes += sample.AllocatedBytes;
@@ -135,6 +141,7 @@ internal readonly record struct RenderBenchmarkResult(
             failedFrames,
             gcdActiveFrames,
             castSegmentFrames,
+            hoveredFrames,
             ToMicroseconds(renderedTicks, renderedFrames),
             ToMicroseconds(Percentile(renderedDurations, 0.95d), 1),
             ToMicroseconds(Percentile(renderedDurations, 0.99d), 1),
@@ -158,7 +165,7 @@ internal readonly record struct RenderBenchmarkResult(
         {
             return string.Create(
                 CultureInfo.InvariantCulture,
-                $"CursorRing benchmark: {DurationSeconds:F2} s, 0/{TotalFrames} visible frames, GCD-active 0, cast-segmented 0, hidden-path elapsed mean {HiddenMeanMicroseconds:F2} us, p95 {HiddenP95Microseconds:F2} us, allocations mean {HiddenMeanAllocatedBytes:F2} B/frame, max {HiddenMaxAllocatedBytes} B, failed {FailedFrames}, unsampled {UnsampledFrames}. Run it while the cursor ring is visible for render geometry.");
+                $"CursorRing benchmark: {DurationSeconds:F2} s, 0/{TotalFrames} visible frames, GCD-active 0, cast-segmented 0, hovered 0, hidden-path elapsed mean {HiddenMeanMicroseconds:F2} us, p95 {HiddenP95Microseconds:F2} us, allocations mean {HiddenMeanAllocatedBytes:F2} B/frame, max {HiddenMaxAllocatedBytes} B, failed {FailedFrames}, unsampled {UnsampledFrames}. Run it while the cursor ring is visible for render geometry.");
         }
 
         var hiddenSummary = HiddenFrames == 0
@@ -168,7 +175,7 @@ internal readonly record struct RenderBenchmarkResult(
                 $" Hidden path: {HiddenFrames} frames, elapsed mean {HiddenMeanMicroseconds:F2} us, p95 {HiddenP95Microseconds:F2} us, allocations mean {HiddenMeanAllocatedBytes:F2} B/frame, max {HiddenMaxAllocatedBytes} B.");
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"CursorRing benchmark: {DurationSeconds:F2} s, visible {RenderedFrames}/{TotalFrames}, GCD-active {GcdActiveFrames}, cast-segmented {CastSegmentFrames}, render-path elapsed mean {MeanMicroseconds:F2} us, p95 {P95Microseconds:F2} us, p99 {P99Microseconds:F2} us, max {MaxMicroseconds:F2} us, allocations mean {MeanAllocatedBytes:F2} B/frame, max {MaxAllocatedBytes} B, geometry mean {MeanVertices:F1} vertices/{MeanIndices:F1} indices, max {MaxVertices}/{MaxIndices}, mean 144 Hz budget share {MeanBudgetPercentAt144Hz:F3}%, p99 share {P99BudgetPercentAt144Hz:F3}%, failed {FailedFrames}, unsampled {UnsampledFrames}.{hiddenSummary}");
+            $"CursorRing benchmark: {DurationSeconds:F2} s, visible {RenderedFrames}/{TotalFrames}, GCD-active {GcdActiveFrames}, cast-segmented {CastSegmentFrames}, hovered {HoveredFrames}, render-path elapsed mean {MeanMicroseconds:F2} us, p95 {P95Microseconds:F2} us, p99 {P99Microseconds:F2} us, max {MaxMicroseconds:F2} us, allocations mean {MeanAllocatedBytes:F2} B/frame, max {MaxAllocatedBytes} B, geometry mean {MeanVertices:F1} vertices/{MeanIndices:F1} indices, max {MaxVertices}/{MaxIndices}, mean 144 Hz budget share {MeanBudgetPercentAt144Hz:F3}%, p99 share {P99BudgetPercentAt144Hz:F3}%, failed {FailedFrames}, unsampled {UnsampledFrames}.{hiddenSummary}");
     }
 
     private static long Percentile(long[] sortedValues, double percentile)
@@ -217,6 +224,8 @@ internal sealed class RenderBenchmark
 
     internal bool CastSegmentsDetected { get; private set; }
 
+    internal bool HoverDetected { get; private set; }
+
     internal double Progress => IsCollecting
         ? Math.Clamp(Stopwatch.GetElapsedTime(startedAt).TotalSeconds / BenchmarkSeconds, 0d, 1d)
         : 1d;
@@ -248,6 +257,7 @@ internal sealed class RenderBenchmark
         unsampledFrames = 0;
         GcdDetected = false;
         CastSegmentsDetected = false;
+        HoverDetected = false;
         countdownEndsAt = timestamp + (long)(Stopwatch.Frequency * CountdownSeconds);
         Phase = BenchmarkPhase.Countdown;
         LastResult = null;
@@ -280,6 +290,7 @@ internal sealed class RenderBenchmark
 
         GcdDetected |= work.GcdActive;
         CastSegmentsDetected |= work.CastSegmentsActive;
+        HoverDetected |= work.HoverActive;
         if (sampleCount < samples.Length)
         {
             samples[sampleCount++] = new RenderBenchmarkSample(ticks, Math.Max(0, allocatedBytes), work);

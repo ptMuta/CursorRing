@@ -50,9 +50,10 @@ public sealed class Plugin : IDalamudPlugin
             Configuration.Save();
         }
         profiles = new ProfileManager(Configuration);
-        profiles.Resolve(catalog.GetZoneGroup(ClientState.TerritoryType), catalog.GetDutyGroup(DutyState.ContentFinderCondition.RowId));
         configWindow = new ConfigWindow(Configuration, profiles, catalog);
         renderer = new CursorRenderer(profiles, Condition, ClientState, PlayerState, AddonEventManager, PluginInterface.UiBuilder, Log);
+        var dutyId = DutyState.ContentFinderCondition.RowId;
+        ResolveProfile(ClientState.TerritoryType, dutyId, catalog.IsPvP(ClientState.TerritoryType, dutyId, ClientState.IsPvP));
         profiles.OnActiveChanged += renderer.ResetState;
         windowSystem.AddWindow(configWindow);
 
@@ -67,6 +68,8 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi += configWindow.Toggle;
         ClientState.Logout += OnLogout;
         ClientState.ZoneInit += OnZoneInit;
+        ClientState.EnterPvP += OnEnterPvP;
+        ClientState.LeavePvP += OnLeavePvP;
     }
 
     internal Configuration Configuration { get; }
@@ -79,6 +82,8 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= configWindow.Toggle;
         ClientState.Logout -= OnLogout;
         ClientState.ZoneInit -= OnZoneInit;
+        ClientState.EnterPvP -= OnEnterPvP;
+        ClientState.LeavePvP -= OnLeavePvP;
         profiles.OnActiveChanged -= renderer.ResetState;
         CommandManager.RemoveHandler(CommandName);
         renderer.ResetState();
@@ -137,16 +142,34 @@ public sealed class Plugin : IDalamudPlugin
     private void OnLogout(int type, int code)
     {
         renderer.ResetState();
-        profiles.Resolve(0, 0);
+        renderer.SetInDuty(false);
+        profiles.Resolve(0, 0, 0, false, false);
     }
 
     private void OnZoneInit(Dalamud.Game.ClientState.ZoneInitEventArgs args)
     {
-        ResolveProfile(args.TerritoryType.RowId, args.ContentFinderCondition.RowId);
+        renderer.ResetState();
+        var territoryId = args.TerritoryType.RowId;
+        var dutyId = args.ContentFinderCondition.RowId;
+        ResolveProfile(territoryId, dutyId, catalog.IsPvP(territoryId, dutyId, ClientState.IsPvP));
     }
 
-    private void ResolveProfile(uint territoryId, uint dutyId)
+    private void OnEnterPvP()
     {
-        profiles.Resolve(catalog.GetZoneGroup(territoryId), catalog.GetDutyGroup(dutyId));
+        renderer.ResetState();
+        ResolveProfile(ClientState.TerritoryType, DutyState.ContentFinderCondition.RowId, true);
+    }
+
+    private void OnLeavePvP()
+    {
+        renderer.ResetState();
+        ResolveProfile(ClientState.TerritoryType, DutyState.ContentFinderCondition.RowId, false);
+    }
+
+    private void ResolveProfile(uint territoryId, uint dutyId, bool inPvP)
+    {
+        var inDuty = dutyId != 0;
+        renderer.SetInDuty(inDuty);
+        profiles.Resolve(catalog.GetZoneGroup(territoryId), catalog.GetDutyGroup(dutyId), catalog.GetPvpGroup(territoryId), inDuty, inPvP);
     }
 }

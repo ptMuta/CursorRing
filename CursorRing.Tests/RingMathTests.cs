@@ -1,7 +1,18 @@
+using System.Numerics;
+
 namespace CursorRing.Tests;
 
 public sealed class RingMathTests
 {
+    [Theory]
+    [InlineData(72f, 56.5f, 72f, 56f)]
+    [InlineData(72.49f, 56.51f, 72f, 57f)]
+    [InlineData(72.5f, 57.5f, 72f, 58f)]
+    public void CenterSnapsToWholePixels(float x, float y, float expectedX, float expectedY)
+    {
+        Assert.Equal(new Vector2(expectedX, expectedY), RingMath.SnapCenter(new Vector2(x, y)));
+    }
+
     [Fact]
     public void ClockwiseFillStartsAtTopAndGrows()
     {

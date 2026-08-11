@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 
 namespace CursorRing;
 
@@ -21,6 +22,11 @@ internal static class RingMath
 {
     internal const float Top = -MathF.PI / 2f;
     internal const float FullTurn = MathF.PI * 2f;
+
+    internal static Vector2 SnapCenter(Vector2 center)
+    {
+        return new Vector2(MathF.Round(center.X), MathF.Round(center.Y));
+    }
 
     internal static ArcAngles GetArc(float elapsedProgress, ProgressBehavior behavior, RotationDirection direction)
     {

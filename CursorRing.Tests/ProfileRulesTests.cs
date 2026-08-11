@@ -39,18 +39,15 @@ public sealed class ProfileRulesTests
     public void DutyOverridesTerritoryIncludingExplicitDefault()
     {
         var territoryProfile = Guid.NewGuid();
-        var territories = new Dictionary<uint, Guid>
+        var assignments = new Dictionary<(AssignmentScope, uint), Guid>
         {
-            [10] = territoryProfile
-        };
-        var duties = new Dictionary<uint, Guid>
-        {
-            [20] = Guid.Empty
+            [(AssignmentScope.Territory, 10)] = territoryProfile,
+            [(AssignmentScope.Duty, 20)] = Guid.Empty
         };
         var defaultProfile = Guid.NewGuid();
-        Assert.Equal(Guid.Empty, ProfileRules.Resolve(territories, duties, 10, 20, defaultProfile));
-        Assert.Equal(territoryProfile, ProfileRules.Resolve(territories, duties, 10, 21, defaultProfile));
-        Assert.Equal(defaultProfile, ProfileRules.Resolve(territories, duties, 11, 21, defaultProfile));
+        Assert.Equal(Guid.Empty, ProfileRules.Resolve(assignments, 10, 20, 0, true, false, defaultProfile));
+        Assert.Equal(territoryProfile, ProfileRules.Resolve(assignments, 10, 0, 0, false, false, defaultProfile));
+        Assert.Equal(defaultProfile, ProfileRules.Resolve(assignments, 11, 0, 0, false, false, defaultProfile));
     }
 
     [Fact]
@@ -99,7 +96,7 @@ public sealed class ProfileRulesTests
             [101] = 100
         };
 
-        Assert.True(ProfileRules.NormalizeZoneTargets(assignments, groups));
+        Assert.True(ProfileRules.NormalizeCatalogTargets(assignments, groups, new Dictionary<uint, uint>(), new Dictionary<uint, uint>(), new HashSet<uint>()));
         Assert.Equal(3, assignments.Count);
         Assert.Single(assignments, value => value.Scope == AssignmentScope.Territory && value.TargetId == 100);
         Assert.Single(assignments, value => value.Scope == AssignmentScope.Territory && value.TargetId == 999);
@@ -115,5 +112,72 @@ public sealed class ProfileRulesTests
         Assert.Equal(profile.Id, ProfileRules.NormalizeDefaultProfileId(profiles, profile.Id));
         Assert.Equal(Guid.Empty, ProfileRules.NormalizeDefaultProfileId(profiles, Guid.NewGuid()));
         Assert.Equal(Guid.Empty, ProfileRules.NormalizeDefaultProfileId(profiles, Guid.Empty));
+    }
+
+    [Fact]
+    public void ResolverSeparatesDomainsAndUsesSpecificBeforeAny()
+    {
+        var zone = Guid.NewGuid();
+        var duty = Guid.NewGuid();
+        var dutyAny = Guid.NewGuid();
+        var pvp = Guid.NewGuid();
+        var pvpAny = Guid.NewGuid();
+        var fallback = Guid.NewGuid();
+        var assignments = new Dictionary<(AssignmentScope, uint), Guid>
+        {
+            [(AssignmentScope.Territory, 10)] = zone,
+            [(AssignmentScope.Duty, 20)] = duty,
+            [(AssignmentScope.DutyAny, 0)] = dutyAny,
+            [(AssignmentScope.PvP, 30)] = pvp,
+            [(AssignmentScope.PvPAny, 0)] = pvpAny
+        };
+
+        Assert.Equal(zone, ProfileRules.Resolve(assignments, 10, 0, 0, false, false, fallback));
+        Assert.Equal(duty, ProfileRules.Resolve(assignments, 10, 20, 0, true, false, fallback));
+        Assert.Equal(dutyAny, ProfileRules.Resolve(assignments, 10, 21, 0, true, false, fallback));
+        Assert.Equal(pvp, ProfileRules.Resolve(assignments, 10, 20, 30, true, true, fallback));
+        Assert.Equal(pvpAny, ProfileRules.Resolve(assignments, 10, 20, 31, true, true, fallback));
+    }
+
+    [Fact]
+    public void NormalizeAcceptsOnlyValidScopeTargets()
+    {
+        var profile = new CursorProfile { Name = "Profile" };
+        var assignments = new List<CursorAssignment>
+        {
+            new() { Scope = AssignmentScope.Territory, TargetId = 0, ProfileId = profile.Id },
+            new() { Scope = AssignmentScope.DutyAny, TargetId = 1, ProfileId = profile.Id },
+            new() { Scope = AssignmentScope.PvPAny, TargetId = 0, ProfileId = profile.Id },
+            new() { Scope = AssignmentScope.PvP, TargetId = 2, ProfileId = profile.Id }
+        };
+
+        Assert.True(ProfileRules.Normalize([profile], assignments));
+        Assert.Equal(2, assignments.Count);
+        Assert.Contains(assignments, value => value.Scope == AssignmentScope.PvPAny && value.TargetId == 0);
+        Assert.Contains(assignments, value => value.Scope == AssignmentScope.PvP && value.TargetId == 2);
+    }
+
+    [Fact]
+    public void CatalogNormalizationSeparatesAndMigratesTargets()
+    {
+        var assignments = new List<CursorAssignment>
+        {
+            new() { Scope = AssignmentScope.Territory, TargetId = 101 },
+            new() { Scope = AssignmentScope.Territory, TargetId = 200 },
+            new() { Scope = AssignmentScope.Territory, TargetId = 999 },
+            new() { Scope = AssignmentScope.Duty, TargetId = 301 },
+            new() { Scope = AssignmentScope.Duty, TargetId = 401 }
+        };
+        var zones = new Dictionary<uint, uint> { [101] = 100 };
+        var duties = new Dictionary<uint, uint> { [301] = 300 };
+        var pvpDuties = new Dictionary<uint, uint> { [401] = 400 };
+        var contextual = new HashSet<uint> { 200 };
+
+        Assert.True(ProfileRules.NormalizeCatalogTargets(assignments, zones, duties, pvpDuties, contextual));
+        Assert.Equal(4, assignments.Count);
+        Assert.Contains(assignments, value => value.Scope == AssignmentScope.Territory && value.TargetId == 100);
+        Assert.Contains(assignments, value => value.Scope == AssignmentScope.Territory && value.TargetId == 999);
+        Assert.Contains(assignments, value => value.Scope == AssignmentScope.Duty && value.TargetId == 300);
+        Assert.Contains(assignments, value => value.Scope == AssignmentScope.PvP && value.TargetId == 400);
     }
 }

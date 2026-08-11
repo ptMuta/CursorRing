@@ -6,11 +6,13 @@ namespace CursorRing;
 internal sealed class ProfileManager
 {
     private readonly Configuration configuration;
-    private readonly Dictionary<uint, Guid> territories = [];
-    private readonly Dictionary<uint, Guid> duties = [];
+    private readonly Dictionary<(AssignmentScope, uint), Guid> assignments = [];
     private readonly Dictionary<Guid, CursorProfile> profiles = [];
     private uint currentTerritoryId;
     private uint currentDutyGroupId;
+    private uint currentPvpGroupId;
+    private bool currentInDuty;
+    private bool currentInPvP;
 
     internal ProfileManager(Configuration configuration)
     {
@@ -23,11 +25,14 @@ internal sealed class ProfileManager
     internal Guid ActiveProfileId { get; private set; }
     internal event Action? OnActiveChanged;
 
-    internal bool Resolve(uint territoryId, uint dutyGroupId)
+    internal bool Resolve(uint territoryId, uint dutyGroupId, uint pvpGroupId, bool inDuty, bool inPvP)
     {
         currentTerritoryId = territoryId;
         currentDutyGroupId = dutyGroupId;
-        var id = ProfileRules.Resolve(territories, duties, territoryId, dutyGroupId, configuration.DefaultProfileId);
+        currentPvpGroupId = pvpGroupId;
+        currentInDuty = inDuty;
+        currentInPvP = inPvP;
+        var id = ProfileRules.Resolve(assignments, territoryId, dutyGroupId, pvpGroupId, inDuty, inPvP, configuration.DefaultProfileId);
         CursorSettings settings;
         if (id == Guid.Empty)
         {
@@ -55,17 +60,16 @@ internal sealed class ProfileManager
     internal void Rebuild()
     {
         profiles.Clear();
-        territories.Clear();
-        duties.Clear();
+        assignments.Clear();
         foreach (var profile in configuration.Profiles)
         {
             profiles.Add(profile.Id, profile);
         }
         foreach (var assignment in configuration.Assignments)
         {
-            (assignment.Scope == AssignmentScope.Duty ? duties : territories)[assignment.TargetId] = assignment.ProfileId;
+            assignments[(assignment.Scope, assignment.TargetId)] = assignment.ProfileId;
         }
-        Resolve(currentTerritoryId, currentDutyGroupId);
+        Resolve(currentTerritoryId, currentDutyGroupId, currentPvpGroupId, currentInDuty, currentInPvP);
     }
 
     internal CursorProfile Create(string name, CursorSettings source)
@@ -92,6 +96,6 @@ internal sealed class ProfileManager
     internal void SetDefault(Guid id)
     {
         configuration.DefaultProfileId = id != Guid.Empty && !profiles.ContainsKey(id) ? Guid.Empty : id;
-        Resolve(currentTerritoryId, currentDutyGroupId);
+        Resolve(currentTerritoryId, currentDutyGroupId, currentPvpGroupId, currentInDuty, currentInPvP);
     }
 }

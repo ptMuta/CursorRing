@@ -9,7 +9,7 @@ public sealed class RenderBenchmarkTests
     {
         var samples = new[]
         {
-            Sample(100, 0, 40, 60, true, true),
+            Sample(100, 0, 40, 60, true, true, true),
             Sample(200, 10, 50, 70),
             Sample(300, 0, 60, 80),
             Sample(400, 30, 70, 90),
@@ -24,8 +24,10 @@ public sealed class RenderBenchmarkTests
         Assert.Equal(1, result.HiddenFrames);
         Assert.Equal(1, result.GcdActiveFrames);
         Assert.Equal(1, result.CastSegmentFrames);
+        Assert.Equal(1, result.HoveredFrames);
         Assert.Contains("GCD-active 1", result.Format(), StringComparison.Ordinal);
         Assert.Contains("cast-segmented 1", result.Format(), StringComparison.Ordinal);
+        Assert.Contains("hovered 1", result.Format(), StringComparison.Ordinal);
         Assert.Equal(250d * microsecondsPerTick, result.MeanMicroseconds, 8);
         Assert.Equal(400d * microsecondsPerTick, result.P95Microseconds, 8);
         Assert.Equal(400d * microsecondsPerTick, result.P99Microseconds, 8);
@@ -120,11 +122,15 @@ public sealed class RenderBenchmarkTests
         Assert.Equal(1, benchmark.SampleCount);
         Assert.False(benchmark.GcdDetected);
         Assert.False(benchmark.CastSegmentsDetected);
+        Assert.False(benchmark.HoverDetected);
         benchmark.Record(collectingAt, 1, 0, new RenderWork(RenderStatus.Rendered, 1, 1, true));
         Assert.True(benchmark.GcdDetected);
         Assert.False(benchmark.CastSegmentsDetected);
         benchmark.Record(collectingAt, 1, 0, new RenderWork(RenderStatus.Rendered, 1, 1, true, true));
         Assert.True(benchmark.CastSegmentsDetected);
+        Assert.False(benchmark.HoverDetected);
+        benchmark.Record(collectingAt, 1, 0, new RenderWork(RenderStatus.Rendered, 1, 1, false, false, true));
+        Assert.True(benchmark.HoverDetected);
         benchmark.Cancel();
         Assert.False(benchmark.IsActive);
     }
@@ -150,8 +156,8 @@ public sealed class RenderBenchmarkTests
         Assert.Contains("unsampled 1", result.Value.Format(), StringComparison.Ordinal);
     }
 
-    private static RenderBenchmarkSample Sample(long ticks, long allocatedBytes, int vertices, int indices, bool gcdActive = false, bool castSegmentsActive = false)
+    private static RenderBenchmarkSample Sample(long ticks, long allocatedBytes, int vertices, int indices, bool gcdActive = false, bool castSegmentsActive = false, bool hoverActive = false)
     {
-        return new RenderBenchmarkSample(ticks, allocatedBytes, new RenderWork(RenderStatus.Rendered, vertices, indices, gcdActive, castSegmentsActive));
+        return new RenderBenchmarkSample(ticks, allocatedBytes, new RenderWork(RenderStatus.Rendered, vertices, indices, gcdActive, castSegmentsActive, hoverActive));
     }
 }

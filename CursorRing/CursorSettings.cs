@@ -6,8 +6,11 @@ namespace CursorRing;
 
 public enum VisibilityMode
 {
-    Always,
-    CombatOnly
+    Always = 0,
+    CombatOnly = 1,
+    DutyOnly = 2,
+    DutyCombat = 3,
+    CombatOrDuty = 4
 }
 
 public enum MouseLookVisibility
@@ -15,6 +18,20 @@ public enum MouseLookVisibility
     FollowVisibility,
     CombatOnly,
     Hidden
+}
+
+public enum HoverVisibilityMode
+{
+    WheneverVisible,
+    OutOfCombatOnly,
+    InCombatOnly
+}
+
+public enum HoverIndicatorStyle
+{
+    InwardCarets,
+    Crosshair,
+    CornerBrackets
 }
 
 public enum GcdPlacement
@@ -66,6 +83,19 @@ public class CursorSettings
     public bool ShowDotBorder { get; set; } = true;
     public float DotBorderThickness { get; set; } = 1f;
     public Vector4 DotBorderColor { get; set; } = DefaultBorderColor;
+    public bool ShowHoverIndicator { get; set; } = true;
+    public HoverVisibilityMode HoverVisibility { get; set; } = HoverVisibilityMode.WheneverVisible;
+    public HoverIndicatorStyle HoverIndicatorStyle { get; set; } = HoverIndicatorStyle.InwardCarets;
+    public float HoverIndicatorSize { get; set; } = 8f;
+    public float HoverIndicatorThickness { get; set; } = 3f;
+    public float HoverIndicatorOffset { get; set; } = 3f;
+    public float HoverIndicatorRotationDegrees { get; set; }
+    public Vector4 HoverIndicatorColor { get; set; } = DefaultGcdColor;
+    public bool UseHoverRingColor { get; set; }
+    public Vector4 HoverRingColor { get; set; } = DefaultGcdColor;
+    public bool UseHoverDotColor { get; set; }
+    public Vector4 HoverDotColor { get; set; } = DefaultGcdColor;
+    public bool HideDotOnHover { get; set; }
     public bool ShowGcd { get; set; } = true;
     public GcdPlacement GcdPlacement { get; set; } = GcdPlacement.Outer;
     public OverlayFillStyle OverlayFill { get; set; } = OverlayFillStyle.Stroke;
@@ -102,6 +132,15 @@ public class CursorSettings
         changed |= Update(RingBorderColor, NormalizeColor(RingBorderColor, DefaultBorderColor), value => RingBorderColor = value);
         changed |= Update(DotBorderThickness, NormalizeNumber(DotBorderThickness, 1f, 1f, 20f), value => DotBorderThickness = value);
         changed |= Update(DotBorderColor, NormalizeColor(DotBorderColor, DefaultBorderColor), value => DotBorderColor = value);
+        changed |= Update(HoverVisibility, NormalizeEnum(HoverVisibility, HoverVisibilityMode.WheneverVisible), value => HoverVisibility = value);
+        changed |= Update(HoverIndicatorStyle, NormalizeEnum(HoverIndicatorStyle, HoverIndicatorStyle.InwardCarets), value => HoverIndicatorStyle = value);
+        changed |= Update(HoverIndicatorSize, NormalizeNumber(HoverIndicatorSize, 8f, 2f, 32f), value => HoverIndicatorSize = value);
+        changed |= Update(HoverIndicatorThickness, NormalizeNumber(HoverIndicatorThickness, 3f, 1f, MathF.Min(8f, HoverIndicatorSize)), value => HoverIndicatorThickness = value);
+        changed |= Update(HoverIndicatorOffset, NormalizeNumber(HoverIndicatorOffset, 3f, 0f, 40f), value => HoverIndicatorOffset = value);
+        changed |= Update(HoverIndicatorRotationDegrees, NormalizeNumber(HoverIndicatorRotationDegrees, 0f, -180f, 180f), value => HoverIndicatorRotationDegrees = value);
+        changed |= Update(HoverIndicatorColor, NormalizeColor(HoverIndicatorColor, DefaultGcdColor), value => HoverIndicatorColor = value);
+        changed |= Update(HoverRingColor, NormalizeColor(HoverRingColor, DefaultGcdColor), value => HoverRingColor = value);
+        changed |= Update(HoverDotColor, NormalizeColor(HoverDotColor, DefaultGcdColor), value => HoverDotColor = value);
         changed |= Update(GcdPlacement, NormalizeEnum(GcdPlacement, GcdPlacement.Outer), value => GcdPlacement = value);
         changed |= Update(OverlayFill, NormalizeEnum(OverlayFill, OverlayFillStyle.Stroke), value => OverlayFill = value);
         changed |= Update(ProgressBehavior, NormalizeEnum(ProgressBehavior, ProgressBehavior.Drain), value => ProgressBehavior = value);
@@ -137,6 +176,19 @@ public class CursorSettings
         changed |= Update(ShowDotBorder, true, value => ShowDotBorder = value);
         changed |= Update(DotBorderThickness, 1f, value => DotBorderThickness = value);
         changed |= Update(DotBorderColor, DefaultBorderColor, value => DotBorderColor = value);
+        changed |= Update(ShowHoverIndicator, true, value => ShowHoverIndicator = value);
+        changed |= Update(HoverVisibility, HoverVisibilityMode.WheneverVisible, value => HoverVisibility = value);
+        changed |= Update(HoverIndicatorStyle, HoverIndicatorStyle.InwardCarets, value => HoverIndicatorStyle = value);
+        changed |= Update(HoverIndicatorSize, 8f, value => HoverIndicatorSize = value);
+        changed |= Update(HoverIndicatorThickness, 3f, value => HoverIndicatorThickness = value);
+        changed |= Update(HoverIndicatorOffset, 3f, value => HoverIndicatorOffset = value);
+        changed |= Update(HoverIndicatorRotationDegrees, 0f, value => HoverIndicatorRotationDegrees = value);
+        changed |= Update(HoverIndicatorColor, DefaultGcdColor, value => HoverIndicatorColor = value);
+        changed |= Update(UseHoverRingColor, false, value => UseHoverRingColor = value);
+        changed |= Update(HoverRingColor, DefaultGcdColor, value => HoverRingColor = value);
+        changed |= Update(UseHoverDotColor, false, value => UseHoverDotColor = value);
+        changed |= Update(HoverDotColor, DefaultGcdColor, value => HoverDotColor = value);
+        changed |= Update(HideDotOnHover, false, value => HideDotOnHover = value);
         changed |= Update(ShowGcd, true, value => ShowGcd = value);
         changed |= Update(GcdPlacement, GcdPlacement.Outer, value => GcdPlacement = value);
         changed |= Update(OverlayFill, OverlayFillStyle.Stroke, value => OverlayFill = value);
@@ -183,6 +235,19 @@ public class CursorSettings
         ShowDotBorder = source.ShowDotBorder;
         DotBorderThickness = source.DotBorderThickness;
         DotBorderColor = source.DotBorderColor;
+        ShowHoverIndicator = source.ShowHoverIndicator;
+        HoverVisibility = source.HoverVisibility;
+        HoverIndicatorStyle = source.HoverIndicatorStyle;
+        HoverIndicatorSize = source.HoverIndicatorSize;
+        HoverIndicatorThickness = source.HoverIndicatorThickness;
+        HoverIndicatorOffset = source.HoverIndicatorOffset;
+        HoverIndicatorRotationDegrees = source.HoverIndicatorRotationDegrees;
+        HoverIndicatorColor = source.HoverIndicatorColor;
+        UseHoverRingColor = source.UseHoverRingColor;
+        HoverRingColor = source.HoverRingColor;
+        UseHoverDotColor = source.UseHoverDotColor;
+        HoverDotColor = source.HoverDotColor;
+        HideDotOnHover = source.HideDotOnHover;
         ShowGcd = source.ShowGcd;
         GcdPlacement = source.GcdPlacement;
         OverlayFill = source.OverlayFill;
@@ -243,8 +308,11 @@ public class CursorSettings
 
 public enum AssignmentScope
 {
-    Territory,
-    Duty
+    Territory = 0,
+    Duty = 1,
+    PvP = 2,
+    DutyAny = 3,
+    PvPAny = 4
 }
 
 public sealed class CursorProfile
